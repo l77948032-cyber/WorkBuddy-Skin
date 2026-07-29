@@ -205,7 +205,9 @@ test("macOS stop performs live cleanup, closes the owned session, and relaunches
   assert.match(status, /"\$OWNED_WATCHER_JOB" != "true"/);
 });
 
-test("Trae state validation rejects truncated state before status reads fields", async (t) => {
+test("Trae state validation rejects truncated state before status reads fields", {
+  skip: process.platform !== "darwin",
+}, async (t) => {
   const stateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "trae-state-validation-"));
   t.after(() => fs.rm(stateRoot, { recursive: true, force: true }));
   const statePath = path.join(stateRoot, "state.json");

@@ -330,7 +330,9 @@ test("WorkBuddy runtime never reports a dead persistent session as active", () =
   }).session, "active");
 });
 
-test("WorkBuddy state validation rejects truncated state before status reads fields", async (t) => {
+test("WorkBuddy state validation rejects truncated state before status reads fields", {
+  skip: process.platform !== "darwin",
+}, async (t) => {
   const stateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-state-validation-"));
   t.after(() => fs.rm(stateRoot, { recursive: true, force: true }));
   const statePath = path.join(stateRoot, "state.json");
