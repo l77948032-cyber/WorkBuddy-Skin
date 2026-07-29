@@ -8,7 +8,7 @@ INJECTOR="$SCRIPT_DIR/injector.mjs"
 THEMES_ROOT="${TRAE_DREAM_SKIN_THEMES_ROOT:-$PROJECT_ROOT/themes}"
 DEFAULT_THEME_ID="neon-portal"
 DEFAULT_PORT="9342"
-SKIN_VERSION="0.4.2"
+SKIN_VERSION="0.5.2"
 
 STATE_ROOT="${TRAE_DREAM_SKIN_HOME:-$HOME/Library/Application Support/TraeDreamSkin}"
 STATE_PATH="$STATE_ROOT/state.json"
@@ -101,6 +101,47 @@ trae_variant_for_bundle_id() {
   esac
 }
 
+requested_trae_variant() {
+  case "${TRAE_DREAM_SKIN_EDITION:-auto}" in
+    auto|'') printf '\n' ;;
+    cn|solo-cn) printf 'solo-cn\n' ;;
+    international) printf 'international\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+assert_requested_trae_edition_matches_state() {
+  [ -f "$STATE_PATH" ] || return 0
+  local requested_variant=""
+  local saved_profile=""
+  local saved_bundle=""
+  local saved_bundle_id=""
+  requested_variant="$(requested_trae_variant)" \
+    || fail "TRAE_DREAM_SKIN_EDITION must be auto, cn, or international."
+  [ -n "$requested_variant" ] || return 0
+
+  saved_profile="$(system_state_field hostProfile)"
+  if [ -z "$saved_profile" ]; then
+    saved_bundle_id="$(system_state_field traeBundleId)"
+    if [ -z "$saved_bundle_id" ]; then
+      saved_bundle="$(system_state_field traeBundle)"
+      case "$saved_bundle" in
+        /*.app) saved_bundle_id="$(plist_value "$saved_bundle" CFBundleIdentifier)" ;;
+      esac
+    fi
+    saved_profile="$(trae_variant_for_bundle_id "$saved_bundle_id" 2>/dev/null || true)"
+  fi
+
+  case "$saved_profile" in
+    solo-cn|international) ;;
+    *)
+      fail "The saved Trae skin session cannot be matched to an edition. Restore it with --edition auto before selecting an explicit edition."
+      ;;
+  esac
+  [ "$saved_profile" = "$requested_variant" ] \
+    || fail "The saved Trae skin session belongs to $saved_profile. Restore it with that edition or --edition auto before selecting $requested_variant."
+}
+
 expected_team_id_for_bundle_id() {
   case "$1" in
     "$TRAE_SOLO_CN_BUNDLE_ID") printf '%s\n' "$EXPECTED_TRAE_SOLO_CN_TEAM_ID" ;;
@@ -191,27 +232,43 @@ trae_candidate_paths() {
 discover_trae_app() {
   local candidate=""
   local configured="${TRAE_APP_BUNDLE:-}"
+  local requested_variant=""
   local saved_bundle=""
   local running_candidate=""
   local running_count=0
   local installed_candidate=""
   local installed_count=0
 
+  requested_variant="$(requested_trae_variant)" \
+    || fail "TRAE_DREAM_SKIN_EDITION must be auto, cn, or international."
+
   if [ -n "$configured" ]; then
     select_trae_candidate "$configured" \
       || fail "TRAE_APP_BUNDLE is not a supported official Trae application: $configured"
+    [ -z "$requested_variant" ] || [ "$TRAE_VARIANT" = "$requested_variant" ] \
+      || fail "TRAE_APP_BUNDLE does not match the requested Trae edition."
     return 0
   fi
 
   saved_bundle="$(system_state_field traeBundle)"
   case "$saved_bundle" in
-    /*.app) select_trae_candidate "$saved_bundle" && return 0 ;;
+    /*.app)
+      if select_trae_candidate "$saved_bundle"; then
+        if [ -z "$requested_variant" ] || [ "$TRAE_VARIANT" = "$requested_variant" ]; then
+          return 0
+        fi
+      fi
+      ;;
   esac
 
   while IFS= read -r candidate; do
     [ -n "$candidate" ] || continue
     [ -f "$candidate/Contents/Info.plist" ] || continue
-    is_supported_bundle_id "$(plist_value "$candidate" CFBundleIdentifier)" || continue
+    identifier="$(plist_value "$candidate" CFBundleIdentifier)"
+    is_supported_bundle_id "$identifier" || continue
+    if [ -n "$requested_variant" ]; then
+      [ "$(trae_variant_for_bundle_id "$identifier")" = "$requested_variant" ] || continue
+    fi
     [ -x "$(candidate_trae_executable "$candidate" 2>/dev/null || true)" ] || continue
     installed_count=$((installed_count + 1))
     installed_candidate="$candidate"
@@ -221,17 +278,20 @@ discover_trae_app() {
     fi
   done < <(trae_candidate_paths)
   [ "$running_count" -le 1 ] \
-    || fail "Both Trae International and TRAE SOLO CN are running. Close one, or set TRAE_APP_BUNDLE to choose the target."
+    || fail "Multiple matching Trae applications are running. Close all but one, or set TRAE_APP_BUNDLE."
   if [ "$running_count" -eq 1 ]; then
     select_trae_candidate "$running_candidate" && return 0
   fi
 
   [ "$installed_count" -le 1 ] \
-    || fail "Both Trae International and TRAE SOLO CN are installed. Open the one to theme, or set TRAE_APP_BUNDLE to choose it."
+    || fail "Multiple matching Trae applications are installed. Open one, set --edition, or set TRAE_APP_BUNDLE."
   if [ "$installed_count" -eq 1 ]; then
     select_trae_candidate "$installed_candidate" && return 0
   fi
 
+  if [ -n "$requested_variant" ]; then
+    fail "Could not find the requested official Trae edition: ${TRAE_DREAM_SKIN_EDITION}."
+  fi
   fail "Could not find Trae International or TRAE SOLO CN. Install an official supported Trae app first."
 }
 
@@ -681,10 +741,9 @@ trae_launch_agent_is_owned() {
   local output=""
   output="$(trae_launch_agent_output)"
   [ -n "$output" ] || return 1
-  case "$output" in
-    *"path = $TRAE_LAUNCH_AGENT_PLIST"*"program = $TRAE_EXE"*) return 0 ;;
-  esac
-  return 1
+  case "$output" in *"path = $TRAE_LAUNCH_AGENT_PLIST"*) ;; *) return 1 ;; esac
+  case "$output" in *"program = $TRAE_EXE"*) ;; *) return 1 ;; esac
+  return 0
 }
 
 stop_owned_trae_launch_agent() {
@@ -713,11 +772,9 @@ launch_agent_is_owned() {
   local output=""
   output="$(launch_agent_output)"
   [ -n "$output" ] || return 1
-  case "$output" in
-    *"path = $LAUNCH_AGENT_PLIST"*) return 0 ;;
-    *"program = $TRAE_EXE"*"$INJECTOR"*) return 0 ;;
-  esac
-  return 1
+  case "$output" in *"path = $LAUNCH_AGENT_PLIST"*) ;; *) return 1 ;; esac
+  case "$output" in *"program = $TRAE_EXE"*) ;; *) return 1 ;; esac
+  return 0
 }
 
 stop_owned_launch_agent() {

@@ -48,8 +48,15 @@ try {
   $operationLock = Enter-TraeSkinOperationLock
   Ensure-TraeSkinStateRoot
 
-  $currentTrae = Get-TraeSkinInstall
   $previousState = Read-TraeSkinState
+  Assert-TraeSkinRequestedEditionMatchesState -State $previousState
+  $savedTrae = Get-TraeSkinInstallFromState -State $previousState
+  $requestedHostProfile = Get-TraeSkinRequestedHostProfile
+  $currentTrae = if (-not $requestedHostProfile -and $null -ne $savedTrae) {
+    $savedTrae
+  } else {
+    Get-TraeSkinInstall
+  }
   if ($PortExplicit -and $null -ne $previousState -and $Port -ne [int]$previousState.port) {
     Fail-TraeSkin 'Stop the active owned skin session before changing its CDP port.'
   }
@@ -59,7 +66,6 @@ try {
   if (-not $Theme) { $Theme = $Script:TraeSkinDefaultTheme }
   Assert-TraeSkinPort -Port $Port
   $themeInfo = Resolve-TraeSkinTheme -ThemeId $Theme
-  $savedTrae = Get-TraeSkinInstallFromState -State $previousState
 
   $runtime = $null
   $trae = $currentTrae

@@ -145,10 +145,9 @@ test("WorkBuddy catalog exposes ten target-owned templates and a deterministic b
   assert.equal(blank.visual.ornament, "none");
 });
 
-test("WorkBuddy component registry and Studio scenes cover every product surface", async () => {
-  const [registry, scenes, mapping] = await Promise.all([
+test("WorkBuddy component registry and runtime mapping cover every product surface", async () => {
+  const [registry, mapping] = await Promise.all([
     readJson(path.join(RESOURCE_ROOT, "components.v1.json")),
-    readJson(path.join(RESOURCE_ROOT, "studio-scenes.v1.json")),
     readJson(path.join(RESOURCE_ROOT, "theme-runtime.v1.json")),
   ]);
   const componentIds = registry.components.map(({ id }) => id);
@@ -156,13 +155,6 @@ test("WorkBuddy component registry and Studio scenes cover every product surface
   assert.equal(new Set(componentIds).size, componentIds.length);
   assert.ok(registry.components.every((component) =>
     component.description && component.states.length > 0 && component.visualSlots.length > 0 && component.selectors.length > 0));
-
-  assert.deepEqual(scenes.scenes.map(({ id }) => id), [
-    "home", "assistant", "chat", "result", "market", "automation", "project", "settings", "overlays",
-  ]);
-  const covered = new Set(scenes.scenes.flatMap(({ componentIds: ids }) => ids));
-  assert.deepEqual(componentIds.filter((id) => !covered.has(id)), []);
-  assert.ok(scenes.scenes.every(({ componentIds: ids }) => ids.every((id) => componentIds.includes(id))));
 
   assert.equal(mapping.target, "workbuddy");
   assert.equal(mapping.selectorProfile, "5.2");
@@ -255,6 +247,7 @@ test("WorkBuddy plugin delegates theme and runtime actions to the injected targe
     themeRead: async (id) => ({ id }),
     themeWrite: async (input) => { calls.push(["write", input]); return input; },
     themeValidate: async (input) => ({ valid: true, input }),
+    themeDelete: async (id, input) => ({ deleted: id, ...input }),
     preview: async (id, options) => ({ id, options }),
     runtimeStatus: async () => ({ available: true, target: "workbuddy" }),
     apply: async (id) => ({ applied: id }),
@@ -274,6 +267,10 @@ test("WorkBuddy plugin delegates theme and runtime actions to the injected targe
   });
   assert.deepEqual(await plugin.executeRuntimeAction("apply", { id: "orchid-night" }), { applied: "orchid-night" });
   assert.deepEqual(await plugin.executeRuntimeAction("restore"), { restored: true });
+  assert.deepEqual(
+    await plugin.executeThemeAction("delete", { id: "orchid-night", expectedRevision: "c".repeat(64) }),
+    { deleted: "orchid-night", expectedRevision: "c".repeat(64) },
+  );
 
   const created = await plugin.executeThemeAction("create", {
     id: "created-workbuddy",

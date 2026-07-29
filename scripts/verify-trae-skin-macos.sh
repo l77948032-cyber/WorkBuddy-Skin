@@ -12,9 +12,11 @@ while [ "$#" -gt 0 ]; do
 done
 
 discover_trae_app
+assert_requested_trae_edition_matches_state
 require_trae_runtime
 acquire_operation_lock
 trap release_operation_lock EXIT
+assert_requested_trae_edition_matches_state
 [ -f "$STATE_PATH" ] || fail "No active skin state was found."
 trae_state_is_trustworthy \
   || fail "The active skin state does not match the selected Trae host. Restore and apply the theme again."

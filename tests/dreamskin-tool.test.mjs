@@ -47,6 +47,11 @@ test("DreamSkin Tool exposes one strict action contract over plugins", async () 
     themePatch: { name: "Updated" },
   });
   await tool.execute({
+    action: "delete",
+    themeId: "sunlit",
+    expectedRevision: "rev-2",
+  });
+  await tool.execute({
     action: "importAsset",
     themeId: "sunlit",
     assetPath: "/tmp/background.png",
@@ -58,6 +63,7 @@ test("DreamSkin Tool exposes one strict action contract over plugins", async () 
     ["theme", "dreamskin.trae", "inspect", {}],
     ["theme", "dreamskin.trae", "read", { id: "sunlit" }],
     ["theme", "dreamskin.trae", "update", { id: "sunlit", expectedRevision: "rev-1", themePatch: { name: "Updated" } }],
+    ["theme", "dreamskin.trae", "delete", { id: "sunlit", expectedRevision: "rev-2" }],
     ["theme", "dreamskin.trae", "importAsset", {
       id: "sunlit",
       assetPath: "/tmp/background.png",
@@ -72,6 +78,7 @@ test("DreamSkin Tool rejects unsafe or ambiguous inputs before plugin dispatch",
   const { calls, pluginManager } = managers();
   const tool = new DreamSkinToolCore({ pluginManager });
   assert.throws(() => tool.execute({ action: "update", themeId: "sunlit", themePatch: {} }), /expectedRevision/);
+  assert.throws(() => tool.execute({ action: "delete", themeId: "sunlit" }), /expectedRevision/);
   assert.throws(() => tool.execute({ action: "validate", themeId: "sunlit", theme: {} }), /exactly one/);
   assert.throws(() => tool.execute({ action: "read", themeId: "sunlit", imagePath: "/tmp/a.png" }), /unknown fields/);
   assert.throws(
@@ -86,7 +93,7 @@ test("DreamSkin Tool rejects unsafe or ambiguous inputs before plugin dispatch",
   assert.equal(calls.length, 0);
 });
 
-test("runtime capabilities stay outside the Agent Tool contract", async () => {
+test("CLI runtime capabilities use the runtime manager rather than theme actions", async () => {
   const { calls, pluginManager } = managers();
   const runtime = new HostRuntimeManager({ pluginManager });
   await runtime.preview({ id: "sunlit", screenshot: false });

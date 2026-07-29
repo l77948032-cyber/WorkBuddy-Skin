@@ -11,6 +11,7 @@ export const THEME_TOOL_ACTIONS = Object.freeze([
   "read",
   "create",
   "update",
+  "delete",
   "importAsset",
   "validate",
 ]);

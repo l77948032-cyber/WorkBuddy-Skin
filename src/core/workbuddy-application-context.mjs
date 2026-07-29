@@ -8,8 +8,8 @@ import {
 import { createApplicationContext, LegacyDreamSkinFacade } from "./application-context.mjs";
 import { ToolError } from "./errors.mjs";
 import {
+  DREAMSKIN_THEMES_ROOT,
   PROJECT_ROOT,
-  STUDIO_THEMES_ROOT,
   TOOL_DATA_ROOT,
 } from "./paths.mjs";
 import { resolvePluginResources } from "./plugin-api.mjs";
@@ -20,7 +20,7 @@ import { WorkBuddyPlatformRuntime } from "./workbuddy-platform.mjs";
 export const WORKBUDDY_PLUGIN_ID = "dreamskin.workbuddy";
 
 export async function createWorkBuddyTargetRegistration({
-  themesRoot = path.join(STUDIO_THEMES_ROOT, WORKBUDDY_PLUGIN_ID),
+  themesRoot = path.join(DREAMSKIN_THEMES_ROOT, WORKBUDDY_PLUGIN_ID),
   dataRoot = path.join(TOOL_DATA_ROOT, "workbuddy"),
   backupsRoot = path.join(dataRoot, "backups"),
   projectRoot = PROJECT_ROOT,

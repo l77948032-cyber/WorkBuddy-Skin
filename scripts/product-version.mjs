@@ -9,8 +9,6 @@ const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z
 const JSON_TARGETS = Object.freeze([
   { file: "package.json", paths: [["version"]] },
   { file: "package-lock.json", paths: [["version"], ["packages", "", "version"]] },
-  { file: "studio/package.json", paths: [["version"]] },
-  { file: "studio/package-lock.json", paths: [["version"], ["packages", "", "version"]] },
   { file: "plugins/trae/plugin.json", paths: [["version"]] },
   { file: "plugins/workbuddy/plugin.json", paths: [["version"]] },
 ]);

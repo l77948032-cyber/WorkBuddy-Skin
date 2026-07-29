@@ -261,3 +261,63 @@ test("runtime installer rejects symlinked package files", {
     (error) => error.code === "RUNTIME_PACKAGE_INTEGRITY_FAILED",
   );
 });
+
+test("runtime installer refuses symlinked mutable roots without touching their targets", {
+  skip: process.platform === "win32",
+}, async (t) => {
+  const paths = await fixture(t);
+  const runtimePackage = await createPackage(paths.root, { version: "4.0.0" });
+  const outsideRuntime = path.join(paths.root, "outside-runtime");
+  await fs.mkdir(path.dirname(paths.runtimeRoot), { recursive: true });
+  await fs.mkdir(outsideRuntime);
+  await fs.symlink(outsideRuntime, paths.runtimeRoot);
+  const linkedRootInstaller = new VersionedRuntimeInstaller({
+    runtimeRoot: paths.runtimeRoot,
+    namespace: "dreamskin.trae",
+  });
+  await assert.rejects(
+    linkedRootInstaller.install({ sourceRoot: runtimePackage.sourceRoot }),
+    (error) => error.code === "RUNTIME_PATH_UNSAFE",
+  );
+  assert.deepEqual(await fs.readdir(outsideRuntime), []);
+
+  await fs.unlink(paths.runtimeRoot);
+  const installer = new VersionedRuntimeInstaller({
+    runtimeRoot: paths.runtimeRoot,
+    namespace: "dreamskin.trae",
+  });
+  await fs.mkdir(installer.versionsRoot, { recursive: true });
+  const outsideStaging = path.join(paths.root, "outside-staging");
+  await fs.mkdir(outsideStaging);
+  await fs.writeFile(path.join(outsideStaging, "keep.txt"), "untouched\n");
+  await fs.symlink(outsideStaging, installer.stagingRoot);
+  await assert.rejects(
+    installer.install({ sourceRoot: runtimePackage.sourceRoot }),
+    (error) => error.code === "RUNTIME_PATH_UNSAFE",
+  );
+  assert.equal(await fs.readFile(path.join(outsideStaging, "keep.txt"), "utf8"), "untouched\n");
+});
+
+test("runtime installer atomically quarantines a stale installation lock", async (t) => {
+  const paths = await fixture(t);
+  const installer = new VersionedRuntimeInstaller({
+    runtimeRoot: paths.runtimeRoot,
+    namespace: "dreamskin.trae",
+  });
+  const runtimePackage = await createPackage(paths.root, { version: "4.1.0" });
+  await installer.ensureRoots();
+  await fs.mkdir(installer.lockPath);
+  await fs.writeFile(path.join(installer.lockPath, "owner.json"), JSON.stringify({
+    pid: 2_147_483_647,
+    token: "stale",
+    createdAt: "2020-01-01T00:00:00.000Z",
+  }));
+
+  const installed = await installer.install({ sourceRoot: runtimePackage.sourceRoot });
+  assert.equal(installed.activeVersion, "4.1.0");
+  await assert.rejects(fs.access(installer.lockPath), (error) => error.code === "ENOENT");
+  assert.deepEqual(
+    (await fs.readdir(installer.namespaceRoot)).filter((entry) => entry.startsWith(".install.lock")),
+    [],
+  );
+});

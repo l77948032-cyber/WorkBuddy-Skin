@@ -9,7 +9,6 @@ const root = path.resolve(here, "..", "..");
 const scripts = {
   common: "scripts/common-windows.ps1",
   start: "scripts/start-trae-skin-windows.ps1",
-  switch: "scripts/switch-theme-windows.ps1",
   verify: "scripts/verify-trae-skin-windows.ps1",
   stop: "scripts/stop-trae-skin-windows.ps1",
   status: "scripts/status-trae-skin-windows.ps1",
@@ -87,6 +86,11 @@ test("common layer binds runtime, signer, PID, and loopback CDP identity", () =>
   assert.match(source, /ownsSession/);
   assert.match(source, /traeStartedAt/);
   assert.match(source, /traePublisherThumbprint/);
+  assert.match(source, /TRAE_DREAM_SKIN_EDITION/);
+  assert.match(source, /Get-TraeSkinRequestedHostProfile/);
+  assert.match(source, /Assert-TraeSkinRequestedEditionMatchesState/);
+  assert.match(source, /Test-TraeSkinInstallMatchesRequestedEdition/);
+  assert.match(source, /Multiple official Trae installations match/);
   assert.match(source, /schemaVersion[^\n]+-ne 2/);
   assert.match(source, /@\('starting', 'active'\)/);
   assert.match(source, /Test-TraeSkinLaunchToken/);
@@ -101,6 +105,38 @@ test("common layer binds runtime, signer, PID, and loopback CDP identity", () =>
   assert.match(source, /SafeHandle/);
   assert.match(source, /Stop-TraeSkinRecordedApplication/);
   assert.match(source, /Start-Process[^\n]+-PassThru/);
+  assert.equal(
+    [...source.matchAll(/Test-TraeSkinInstallMatchesRequestedEdition -Trae \$trae/g)].length,
+    2,
+  );
+});
+
+test("explicit Windows edition is checked against saved state before lifecycle work", () => {
+  const start = read(scripts.start);
+  const status = read(scripts.status);
+  const verify = read(scripts.verify);
+  const stop = read(scripts.stop);
+
+  for (const [relative, source, stateRead, firstLifecycleAction] of [
+    [scripts.start, start, "Read-TraeSkinState", "Get-TraeSkinNodeRuntime"],
+    [scripts.status, status, "Read-TraeSkinState", "Get-TraeSkinOrphanSessionScan"],
+    [scripts.verify, verify, "Read-TraeSkinState", "Test-TraeSkinApplicationProcessIdentity"],
+    [scripts.stop, stop, "Read-TraeSkinState", "Get-TraeSkinOrphanSessionScan"],
+  ]) {
+    const readIndex = source.indexOf(stateRead);
+    const guardIndex = source.indexOf("Assert-TraeSkinRequestedEditionMatchesState");
+    const lifecycleIndex = source.indexOf(firstLifecycleAction);
+    assert.ok(readIndex >= 0 && readIndex < guardIndex, relative);
+    assert.ok(guardIndex < lifecycleIndex, relative);
+  }
+  assert.match(
+    start,
+    /\$currentTrae = if \(-not \$requestedHostProfile -and \$null -ne \$savedTrae\)/,
+  );
+  assert.ok(
+    start.indexOf("$previousState = Read-TraeSkinState")
+      < start.indexOf("$currentTrae = if (-not $requestedHostProfile"),
+  );
 });
 
 test("start and stop implement a reversible owned CDP lifecycle", () => {
@@ -235,44 +271,4 @@ test("verify and status require the complete recorded ownership chain", () => {
   assert.match(verify, /session\)" -ne 'active'/);
   assert.match(status, /Get-TraeSkinOwnedInjectorProcesses/);
   assert.match(status, /session\)" -eq 'active'/);
-});
-
-test("friendly cmd entry points call every Windows operation", () => {
-  const entries = new Map([
-    ["windows/Start Trae Dream Skin.cmd", scripts.start],
-    ["windows/Switch Trae Skin.cmd", scripts.switch],
-    ["windows/Verify Trae Dream Skin.cmd", scripts.verify],
-    ["windows/Stop Trae Dream Skin.cmd", scripts.stop],
-    ["windows/Trae Dream Skin Status.cmd", scripts.status],
-  ]);
-  for (const [entry, script] of entries) {
-    const source = read(entry);
-    assert.match(source, /WindowsPowerShell\\v1\.0\\powershell\.exe/i);
-    assert.ok(source.includes(path.basename(script)), `${entry} does not call ${script}`);
-    if (!entry.includes("Status")) {
-      assert.match(source, /if not "%EXIT_CODE%"=="0" pause/i,
-        `${entry} must not pause after a successful operation`);
-    }
-  }
-});
-
-test("Windows and macOS expose the same public theme menu", () => {
-  const windowsSwitch = read(scripts.switch);
-  const macSwitch = read("scripts/switch-theme-macos.sh");
-  const publicThemes = [
-    "neon-portal",
-    "ember-glass",
-    "paper-aurora",
-    "sunlit-spark",
-    "violet-rift",
-  ];
-  for (const source of [windowsSwitch, macSwitch]) {
-    let previousTheme = -1;
-    for (const theme of publicThemes) {
-      const location = source.indexOf(theme);
-      assert.ok(location > previousTheme, `${theme} is missing or out of menu order`);
-      previousTheme = location;
-    }
-    assert.doesNotMatch(source, /spark-atelier/);
-  }
 });

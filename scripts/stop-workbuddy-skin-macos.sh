@@ -22,11 +22,11 @@ if workbuddy_state_is_trustworthy; then
   STATE_TRUSTWORTHY="true"
   WORKBUDDY_BUNDLE="$(state_field workbuddyBundle)"
   WORKBUDDY_EXE="$(state_field workbuddyExe)"
-  WORKBUDDY_VERSION="$(state_field workbuddyVersion 2>/dev/null || true)"
+  WORKBUDDY_VERSION="$(plist_value "$WORKBUDDY_BUNDLE" CFBundleShortVersionString)"
   WORKBUDDY_BUNDLE_ID="$(plist_value "$WORKBUDDY_BUNDLE" CFBundleIdentifier)"
   if [ -x "$WORKBUDDY_EXE" ] && is_supported_bundle_id "$WORKBUDDY_BUNDLE_ID" && \
     [ "$(codesign_team_id "$WORKBUDDY_BUNDLE")" = "$EXPECTED_WORKBUDDY_TEAM_ID" ] && \
-    /usr/bin/codesign --verify --deep --strict "$WORKBUDDY_BUNDLE" >/dev/null 2>&1 && \
+    workbuddy_signature_is_valid_or_repaired && \
     [ -f "$WORKBUDDY_SKIN_CSS_PATH" ] && \
     [ -f "$WORKBUDDY_RENDERER_TEMPLATE_PATH" ] && \
     [ -f "$WORKBUDDY_COMPONENT_REGISTRY_PATH" ]; then

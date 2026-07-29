@@ -11,6 +11,7 @@ const ACTION_KEYS = Object.freeze({
   read: new Set(["action", "pluginId", "themeId"]),
   create: new Set(["action", "pluginId", "themeId", "themePatch", "sourceId", "dryRun"]),
   update: new Set(["action", "pluginId", "themeId", "themePatch", "expectedRevision", "dryRun"]),
+  delete: new Set(["action", "pluginId", "themeId", "expectedRevision"]),
   importAsset: new Set(["action", "pluginId", "themeId", "assetPath", "expectedRevision", "dryRun"]),
   validate: new Set(["action", "pluginId", "themeId", "theme"]),
 });
@@ -49,7 +50,7 @@ function normalizeInput(rawInput, defaultPluginId) {
   }
 
   const normalized = { action, pluginId };
-  if (["read", "create", "update", "importAsset"].includes(action)) {
+  if (["read", "create", "update", "delete", "importAsset"].includes(action)) {
     normalized.themeId = requiredString(input.themeId, "themeId");
   }
   if (action === "create" || action === "update") {
@@ -63,6 +64,9 @@ function normalizeInput(rawInput, defaultPluginId) {
     normalized.sourceId = requiredString(input.sourceId, "sourceId");
   }
   if (action === "update") {
+    normalized.expectedRevision = requiredString(input.expectedRevision, "expectedRevision");
+  }
+  if (action === "delete") {
     normalized.expectedRevision = requiredString(input.expectedRevision, "expectedRevision");
   }
   if (action === "importAsset") {
@@ -137,6 +141,10 @@ export class DreamSkinToolCore {
 
   updateTheme(input, pluginId = this.defaultPluginId) {
     return this.execute({ action: "update", pluginId, ...input });
+  }
+
+  deleteTheme(input, pluginId = this.defaultPluginId) {
+    return this.execute({ action: "delete", pluginId, ...input });
   }
 
   importThemeAsset(input, pluginId = this.defaultPluginId) {

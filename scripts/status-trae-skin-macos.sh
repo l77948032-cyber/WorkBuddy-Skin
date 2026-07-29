@@ -4,11 +4,13 @@ set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd -P)/common-macos.sh"
 
 discover_trae_app
+assert_requested_trae_edition_matches_state
 # Applying and verifying a theme perform the full deep-signature check. The
 # frequently polled status path only needs the exact bundle/Team ID binding.
 require_trae_runtime identity
 acquire_operation_lock
 trap release_operation_lock EXIT
+assert_requested_trae_edition_matches_state
 
 if [ ! -f "$STATE_PATH" ]; then
   OWNED_APP_JOB="false"

@@ -303,7 +303,7 @@
     root.setAttribute("data-workbuddy-host-version", detectHostVersion() || "unknown");
     root.setAttribute(
       "data-workbuddy-skin-compat",
-      /^5\.2\./.test(detectHostVersion() || "") ? "5.2" : "token-only",
+      /^5\.(?:2|3)\./.test(detectHostVersion() || "") ? "5.2" : "token-only",
     );
     root.setAttribute(ROUTE_ATTRIBUTE, detectRoute());
     root.setAttribute("data-workbuddy-skin-treatment", theme.appearance.treatment);

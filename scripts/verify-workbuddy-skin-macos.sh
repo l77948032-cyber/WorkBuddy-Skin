@@ -12,9 +12,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 discover_workbuddy_app
-require_workbuddy_runtime
+ensure_state_root
 acquire_operation_lock
 trap release_operation_lock EXIT
+require_workbuddy_runtime
 [ -f "$STATE_PATH" ] || fail "No active skin state was found."
 PORT="$(state_field port)"
 THEME_ID="$(state_field themeId)"

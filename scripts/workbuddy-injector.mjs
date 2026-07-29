@@ -17,7 +17,7 @@ const filename = fileURLToPath(import.meta.url);
 const scriptRoot = path.dirname(filename);
 const projectRoot = path.resolve(scriptRoot, "..");
 
-export const WORKBUDDY_SKIN_VERSION = "0.4.2";
+export const WORKBUDDY_SKIN_VERSION = "0.5.2";
 export const WORKBUDDY_DEFAULT_PORT = 9432;
 export const WORKBUDDY_DEFAULT_THEME_DIR = path.join(
   projectRoot,
@@ -347,6 +347,20 @@ export function verifyWorkBuddySession(session, expectedThemeId = null) {
         pointerEvents: computed.pointerEvents,
       };
     };
+    const artLayer = (node) => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      const computed = getComputedStyle(node, '::before');
+      const opacity = Number.parseFloat(computed.opacity || '1');
+      return {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        backgroundImage: computed.backgroundImage,
+        visible: rect.width > 0 && rect.height > 0 && computed.display !== 'none' &&
+          computed.visibility !== 'hidden' && Number.isFinite(opacity) && opacity > 0,
+      };
+    };
+    const renderedArt = artLayer(shell);
     const result = {
       installed: Boolean(root?.classList.contains('workbuddy-dream-skin')),
       bodyInstalled: Boolean(body?.classList.contains('workbuddy-dream-skin-body')),
@@ -359,6 +373,9 @@ export function verifyWorkBuddySession(session, expectedThemeId = null) {
       route: root?.getAttribute('data-workbuddy-skin-route') ?? null,
       stylePresent: Boolean(style?.textContent?.length),
       artPresent: Boolean(root?.style.getPropertyValue('--dreamskin-art')),
+      artRendered: Boolean(renderedArt?.visible && renderedArt.backgroundImage &&
+        renderedArt.backgroundImage !== 'none'),
+      artLayer: renderedArt,
       tokensPresent: ['--dreamskin-bg', '--dreamskin-panel', '--dreamskin-accent', '--dreamskin-text',
         '--dreamskin-focus'].every((name) => Boolean(root?.style.getPropertyValue(name))),
       cleanupAvailable: typeof state?.cleanup === 'function',
@@ -375,7 +392,7 @@ export function verifyWorkBuddySession(session, expectedThemeId = null) {
     result.pass = result.installed && result.bodyInstalled &&
       result.version === result.expectedVersion &&
       (!result.expectedThemeId || result.themeId === result.expectedThemeId) &&
-      result.stylePresent && result.artPresent && result.tokensPresent &&
+      result.stylePresent && result.artPresent && result.artRendered && result.tokensPresent &&
       result.cleanupAvailable && result.ensureAvailable &&
       result.semanticComponentCount >= 3 && result.interactiveCount >= 2 &&
       result.viewport.width >= 500 && result.viewport.height >= 320 &&

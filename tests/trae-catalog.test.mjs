@@ -15,7 +15,7 @@ import { createTraePlugin } from "../plugins/trae/plugin.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("Trae owns the existing Studio catalog metadata and template identity rules", () => {
+test("Trae owns its catalog metadata and template identity rules", () => {
   assert.deepEqual(Object.keys(TRAE_CATALOG_METADATA), [
     "sunlit-spark",
     "violet-rift",

@@ -6,7 +6,7 @@ import { PlatformRuntime } from "./platform.mjs";
 import { REGISTRY_PATH, RUNTIME_MAPPING_PATH, SCHEMA_PATH, TOOL_DATA_ROOT } from "./paths.mjs";
 import { ThemeRepository } from "./theme-repository.mjs";
 
-export const AGENT_TOOL_VERSION = "0.4.2";
+export const AGENT_TOOL_VERSION = "0.5.2";
 
 async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));
@@ -95,7 +95,7 @@ export class TraeDreamSkinService {
         arbitraryCssWrites: false,
         arbitraryPathReads: false,
         validatedAssetImports: true,
-        runtimeActionsExposedToAgent: false,
+        runtimeActionsExposedToCli: true,
       },
     };
   }
@@ -139,6 +139,43 @@ export class TraeDreamSkinService {
 
   themeWrite(input) {
     return this.repository.write(input);
+  }
+
+  async themeDelete(id, { expectedRevision } = {}) {
+    return this.runtimeOperation(async () => {
+      let status;
+      try {
+        status = await this.runtime.status();
+      } catch (error) {
+        throw new ToolError(
+          "RUNTIME_STATE_UNAVAILABLE",
+          `The active ${this.target.name} theme could not be determined. Restore the runtime before deleting themes.`,
+          { themeId: id },
+          { cause: error },
+        );
+      }
+      const appliedThemeId = (status?.session === "active" || status?.session === "degraded")
+        && typeof status.themeId === "string"
+        && status.themeId
+        ? status.themeId
+        : null;
+      const ambiguousOwnedSession = status?.session === "orphaned"
+        || status?.session === "orphaned-unverified"
+        || ((status?.session === "active" || status?.session === "degraded") && !appliedThemeId);
+      if (ambiguousOwnedSession || appliedThemeId === id) {
+        throw new ToolError(
+          "THEME_ACTIVE",
+          appliedThemeId === id
+            ? "Restore or apply another theme before deleting the active theme."
+            : "Restore the runtime before deleting themes while its active theme identity is unavailable.",
+          {
+            themeId: appliedThemeId,
+            runtimeSession: status?.session || "unknown",
+          },
+        );
+      }
+      return this.repository.delete(id, { expectedRevision });
+    });
   }
 
   themeValidate(input) {

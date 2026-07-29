@@ -13,6 +13,7 @@ try {
   $operationLock = Enter-TraeSkinOperationLock
   $state = Read-TraeSkinState
   if ($null -eq $state) { Fail-TraeSkin 'No active skin state was found.' }
+  Assert-TraeSkinRequestedEditionMatchesState -State $state
   if ("$($state.session)" -ne 'active') {
     Fail-TraeSkin 'The skin session is still starting; use status or stop it before verification.'
   }

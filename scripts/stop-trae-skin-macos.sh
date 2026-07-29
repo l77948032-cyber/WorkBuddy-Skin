@@ -12,10 +12,12 @@ while [ "$#" -gt 0 ]; do
 done
 
 discover_trae_app
+assert_requested_trae_edition_matches_state
 require_trae_runtime
 ensure_state_root
 acquire_operation_lock
 trap release_operation_lock EXIT
+assert_requested_trae_edition_matches_state
 
 stop_launchd_owned_session() {
   local remove_state="$1"
@@ -93,6 +95,12 @@ stop_launchd_owned_session() {
 }
 
 if [ ! -f "$STATE_PATH" ]; then
+  if [ -n "$(trae_launch_agent_output)" ] && ! trae_launch_agent_is_owned; then
+    fail "The saved-state-free Trae skin session belongs to another edition or unverified launch job; nothing was stopped."
+  fi
+  if [ -n "$(launch_agent_output)" ] && ! launch_agent_is_owned; then
+    fail "The saved-state-free Trae skin watcher belongs to another edition or unverified launch job; nothing was stopped."
+  fi
   if trae_launch_agent_is_owned; then
     stop_launchd_owned_session false
   else

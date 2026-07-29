@@ -76,7 +76,7 @@ application.
 ## Security model
 
 DreamSkin stores themes locally and exposes a scoped CLI for theme documents.
-Applying or restoring a theme remains an explicit Studio action. Target runtime
+Applying or restoring a theme is always an explicit CLI action. Target runtime
 connections use loopback-only local mechanisms; while a themed session is
 active, treat its local debugging endpoint as sensitive and do not run
 untrusted local software.

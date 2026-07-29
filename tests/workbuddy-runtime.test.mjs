@@ -5,14 +5,17 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import vm from "node:vm";
 
 import {
   classifyWorkBuddyProbe,
   isPlausibleWorkBuddyRendererTarget,
   loadWorkBuddyPayload,
   parseWorkBuddyArgs,
+  verifyWorkBuddySession,
   workBuddyOneShotPass,
   WORKBUDDY_DEFAULT_PORT,
+  WORKBUDDY_SKIN_VERSION,
 } from "../scripts/workbuddy-injector.mjs";
 import {
   normalizeWorkBuddyRuntimeStatus,
@@ -32,6 +35,127 @@ function rendererTarget(overrides = {}) {
     webSocketDebuggerUrl: `ws://127.0.0.1:${WORKBUDDY_DEFAULT_PORT}/devtools/page/WB123`,
     ...overrides,
   };
+}
+
+function createVerificationSession({
+  backgroundImage = 'url("blob:workbuddy-art")',
+  opacity = "0.96",
+  width = 1154,
+  height = 800,
+  visibility = "visible",
+  display = "block",
+} = {}) {
+  const style = {
+    textContent: "/* DreamSkin */",
+  };
+  const root = {
+    classList: { contains: (name) => name === "workbuddy-dream-skin" },
+    getAttribute: (name) => ({
+      "data-workbuddy-skin-theme": "orchid-night",
+      "data-workbuddy-skin-compat": "5.2",
+      "data-workbuddy-host-version": "5.3.5",
+      "data-workbuddy-skin-route": "home",
+    })[name] ?? null,
+    style: {
+      getPropertyValue: (name) => ({
+        "--dreamskin-art": 'url("blob:workbuddy-art")',
+        "--dreamskin-bg": "#080B18",
+        "--dreamskin-panel": "#111528",
+        "--dreamskin-accent": "#9A6FF2",
+        "--dreamskin-text": "#F3F1FC",
+        "--dreamskin-focus": "#46C9DA",
+      })[name] ?? "",
+    },
+  };
+  const body = { classList: { contains: (name) => name === "workbuddy-dream-skin-body" } };
+  const shell = {
+    getBoundingClientRect: () => ({ width, height }),
+  };
+  const panel = {
+    getBoundingClientRect: () => ({ width: 264, height }),
+  };
+  const content = {
+    getBoundingClientRect: () => ({ width: Math.max(0, width - 264), height }),
+  };
+  const document = {
+    documentElement: root,
+    body,
+    getElementById: (id) => id === "workbuddy-dream-skin-style" ? style : null,
+    querySelector: (selector) => ({
+      ".teams-container": shell,
+      ".conversation-sidebar": panel,
+      ".teams-content-wrapper": content,
+    })[selector] ?? null,
+    querySelectorAll: () => Array.from({ length: 4 }),
+  };
+  const computed = (node, pseudo) => ({
+    display,
+    visibility,
+    pointerEvents: "auto",
+    opacity: pseudo === "::before" ? opacity : "1",
+    backgroundImage: pseudo === "::before" ? backgroundImage : "none",
+  });
+  const context = {
+    document,
+    getComputedStyle: computed,
+    innerWidth: width,
+    innerHeight: height,
+    Number,
+    window: {
+      __WORKBUDDY_DREAM_SKIN_STATE__: {
+        version: WORKBUDDY_SKIN_VERSION,
+        themeId: "orchid-night",
+        hostVersion: "5.3.5",
+        cleanup() {},
+        ensure() {},
+      },
+    },
+  };
+  return {
+    evaluate: async (expression) => vm.runInNewContext(expression, context),
+  };
+}
+
+function createTemplateRuntime({ userAgent = "WorkBuddy/5.3.5" } = {}) {
+  const attributes = new Map();
+  const styleProperties = new Map();
+  const styleNode = { id: "", dataset: {}, textContent: "" };
+  const root = {
+    classList: { add() {}, remove() {} },
+    style: {
+      setProperty: (name, value) => styleProperties.set(name, value),
+      removeProperty: (name) => styleProperties.delete(name),
+    },
+    setAttribute: (name, value) => attributes.set(name, value),
+    removeAttribute: (name) => attributes.delete(name),
+    getAttribute: (name) => attributes.get(name) ?? null,
+  };
+  const body = { classList: { add() {}, remove() {} } };
+  const document = {
+    documentElement: root,
+    body,
+    head: { append: (node) => { Object.assign(styleNode, node); } },
+    getElementById: (id) => id === "workbuddy-dream-skin-style" && styleNode.textContent ? styleNode : null,
+    createElement: () => ({ id: "", dataset: {}, textContent: "" }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+  const context = {
+    Blob,
+    Uint8Array,
+    URL: { createObjectURL: () => "blob:workbuddy-art", revokeObjectURL() {} },
+    MutationObserver: class { observe() {} disconnect() {} },
+    document,
+    navigator: { userAgent },
+    atob,
+    requestAnimationFrame: (callback) => callback(),
+    addEventListener() {},
+    removeEventListener() {},
+    Element: class {},
+    getComputedStyle: () => ({ backgroundImage: "none" }),
+  };
+  context.window = context;
+  return { attributes, context };
 }
 
 test("WorkBuddy injector parses scoped assets and rejects unsafe endpoint values", () => {
@@ -118,6 +242,26 @@ test("WorkBuddy payload resolves canonical CSS, art, theme, and component regist
   assert.match(payload.payload, /data:image\/png;base64,/);
   assert.match(payload.payload, /shell\.workspace/);
   assert.doesNotMatch(payload.payload, /__WORKBUDDY_SKIN_(?:CSS|ART|THEME|COMPONENT_REGISTRY|VERSION)_JSON__/);
+});
+
+test("WorkBuddy 5.3.5 uses the tested 5.2 structural profile", async () => {
+  const payload = await loadWorkBuddyPayload();
+  const runtime = createTemplateRuntime({ userAgent: "Mozilla/5.0 WorkBuddy/5.3.5 Chrome/138" });
+  vm.runInNewContext(payload.payload, runtime.context);
+  assert.equal(runtime.attributes.get("data-workbuddy-skin-compat"), "5.2");
+});
+
+test("WorkBuddy verification requires the artwork pseudo-element to render", async () => {
+  const rendered = await verifyWorkBuddySession(createVerificationSession(), "orchid-night");
+  assert.equal(rendered.artPresent, true);
+  assert.equal(rendered.artRendered, true);
+  assert.equal(rendered.artLayer.backgroundImage, 'url("blob:workbuddy-art")');
+  assert.equal(rendered.pass, true);
+
+  const falsePositive = await verifyWorkBuddySession(createVerificationSession({ backgroundImage: "none" }), "orchid-night");
+  assert.equal(falsePositive.artPresent, true, "the configured art variable alone is insufficient");
+  assert.equal(falsePositive.artRendered, false);
+  assert.equal(falsePositive.pass, false);
 });
 
 test("WorkBuddy platform runtime uses target-specific scripts, roots, and revision tracking", async () => {
@@ -242,15 +386,226 @@ test("WorkBuddy state validation rejects truncated state before status reads fie
   assert.match(stop, /stop_path_owned_launch_agent/);
 });
 
+test("WorkBuddy 5.3.5 generated editor log is isolated only when strict verification then passes", {
+  skip: process.platform !== "darwin",
+}, async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-signature-repair-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const stateRoot = path.join(root, "state");
+  const bundle = path.join(root, "WorkBuddy.app");
+  const generatedLog = path.join(
+    bundle,
+    "Contents",
+    "Resources",
+    "app.asar.unpacked",
+    "node_modules",
+    "@tencent",
+    "tencent-docs-ai-engine",
+    "bin",
+    "darwin-arm64",
+    "editor_sdk.log",
+  );
+  await fs.mkdir(path.dirname(generatedLog), { recursive: true });
+  await fs.writeFile(path.join(bundle, "Contents", "Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleShortVersionString</key><string>5.3.5</string>
+</dict></plist>
+`);
+  await fs.writeFile(generatedLog, "generated by WorkBuddy\n");
+
+  const result = await execFile("/bin/bash", ["-c", [
+    'source "$COMMON_PATH"',
+    'WORKBUDDY_BUNDLE="$TEST_BUNDLE"',
+    'WORKBUDDY_VERSION="5.3.5"',
+    'workbuddy_signature_is_valid() { [ ! -e "$(workbuddy_generated_log_path)" ]; }',
+    'workbuddy_signature_diagnostics() { printf "%s: a sealed resource is missing or invalid\\nfile added: %s\\n" "$WORKBUDDY_BUNDLE" "$(workbuddy_generated_log_path)"; }',
+    "workbuddy_signature_is_valid_or_repaired",
+    'printf "%s" "$WORKBUDDY_SIGNATURE_REPAIR_PATH"',
+  ].join("; ")], {
+    env: {
+      ...process.env,
+      COMMON_PATH: path.join(ROOT, "scripts", "common-workbuddy-macos.sh"),
+      TEST_BUNDLE: bundle,
+      WORKBUDDY_DREAM_SKIN_HOME: stateRoot,
+    },
+  });
+
+  assert.match(result.stderr, /isolated WorkBuddy 5\.3\.5 generated log/);
+  assert.equal(await fs.readFile(result.stdout, "utf8"), "generated by WorkBuddy\n");
+  await assert.rejects(fs.access(generatedLog));
+  assert.ok(path.resolve(result.stdout).startsWith(path.resolve(stateRoot) + path.sep));
+});
+
+test("WorkBuddy generated-log repair is fail-closed for other corruption, versions, and symlinks", {
+  skip: process.platform !== "darwin",
+}, async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-signature-repair-guard-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const commonPath = path.join(ROOT, "scripts", "common-workbuddy-macos.sh");
+  const classifierBundle = path.join(root, "Classifier.app");
+  const classifier = await execFile("/bin/bash", ["-c", [
+    'source "$COMMON_PATH"',
+    'WORKBUDDY_BUNDLE="$TEST_BUNDLE"',
+    'known="$(workbuddy_generated_log_path)"',
+    'exact="$WORKBUDDY_BUNDLE: a sealed resource is missing or invalid\nfile added: $known"',
+    'is_known_workbuddy_generated_log_failure "$exact" && printf 1 || printf 0',
+    'is_known_workbuddy_generated_log_failure "$WORKBUDDY_BUNDLE: a sealed resource is missing or invalid" && printf 1 || printf 0',
+    'is_known_workbuddy_generated_log_failure "$WORKBUDDY_BUNDLE: a sealed resource is missing or invalid\nfile added: $WORKBUDDY_BUNDLE/other.log" && printf 1 || printf 0',
+    'is_known_workbuddy_generated_log_failure "$exact\nfile modified: $WORKBUDDY_BUNDLE/Contents/Resources/app.asar" && printf 1 || printf 0',
+    'is_known_workbuddy_generated_log_failure "$exact.suffix" && printf 1 || printf 0',
+  ].join("; ")], {
+    env: {
+      ...process.env,
+      COMMON_PATH: commonPath,
+      TEST_BUNDLE: classifierBundle,
+      WORKBUDDY_DREAM_SKIN_HOME: path.join(root, "classifier-state"),
+    },
+  });
+  assert.equal(classifier.stdout, "10000");
+
+  const createBundle = async (name, version, { symlink = false } = {}) => {
+    const stateRoot = path.join(root, `${name}-state`);
+    const bundle = path.join(root, `${name}.app`);
+    const generatedLog = path.join(
+      bundle,
+      "Contents",
+      "Resources",
+      "app.asar.unpacked",
+      "node_modules",
+      "@tencent",
+      "tencent-docs-ai-engine",
+      "bin",
+      "darwin-arm64",
+      "editor_sdk.log",
+    );
+    await fs.mkdir(path.dirname(generatedLog), { recursive: true });
+    await fs.writeFile(path.join(bundle, "Contents", "Info.plist"), `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleShortVersionString</key><string>${version}</string>
+</dict></plist>
+`);
+    if (symlink) {
+      const external = path.join(root, `${name}-external.log`);
+      await fs.writeFile(external, "external\n");
+      await fs.symlink(external, generatedLog);
+    } else {
+      await fs.writeFile(generatedLog, "preserve me\n");
+    }
+    return { stateRoot, bundle, generatedLog, version };
+  };
+
+  const invoke = (fixture, signatureBody, diagnosticsBody = (
+    'printf "%s: a sealed resource is missing or invalid\\nfile added: %s\\n" ' +
+    '"$WORKBUDDY_BUNDLE" "$(workbuddy_generated_log_path)"'
+  )) => execFile("/bin/bash", ["-c", [
+    'source "$COMMON_PATH"',
+    'WORKBUDDY_BUNDLE="$TEST_BUNDLE"',
+    'WORKBUDDY_VERSION="$TEST_VERSION"',
+    `workbuddy_signature_is_valid() { ${signatureBody}; }`,
+    `workbuddy_signature_diagnostics() { ${diagnosticsBody}; }`,
+    "if workbuddy_signature_is_valid_or_repaired; then exit 9; fi",
+  ].join("; ")], {
+    env: {
+      ...process.env,
+      COMMON_PATH: commonPath,
+      TEST_BUNDLE: fixture.bundle,
+      TEST_VERSION: fixture.version,
+      WORKBUDDY_DREAM_SKIN_HOME: fixture.stateRoot,
+    },
+  });
+
+  const otherCorruption = await createBundle("other-corruption", "5.3.5");
+  const beforeRollback = await fs.stat(otherCorruption.generatedLog);
+  await invoke(otherCorruption, "return 1");
+  const afterRollback = await fs.stat(otherCorruption.generatedLog);
+  assert.equal(await fs.readFile(otherCorruption.generatedLog, "utf8"), "preserve me\n");
+  assert.equal(afterRollback.ino, beforeRollback.ino);
+  assert.equal(afterRollback.mode, beforeRollback.mode);
+  assert.deepEqual(
+    await fs.readdir(path.join(otherCorruption.stateRoot, "host-signature-repairs")),
+    [],
+  );
+
+  const unexpectedDiagnostics = await createBundle("unexpected-diagnostics", "5.3.5");
+  const unexpectedBefore = await fs.stat(unexpectedDiagnostics.generatedLog);
+  await invoke(
+    unexpectedDiagnostics,
+    "return 1",
+    'printf "%s: a sealed resource is missing or invalid\\nfile modified: %s/Contents/Resources/app.asar\\n" "$WORKBUDDY_BUNDLE" "$WORKBUDDY_BUNDLE"',
+  );
+  const unexpectedAfter = await fs.stat(unexpectedDiagnostics.generatedLog);
+  assert.equal(unexpectedAfter.ino, unexpectedBefore.ino);
+  await assert.rejects(fs.access(path.join(
+    unexpectedDiagnostics.stateRoot,
+    "host-signature-repairs",
+  )));
+
+  const unsupportedVersion = await createBundle("unsupported-version", "5.3.6");
+  await invoke(unsupportedVersion, '[ ! -e "$(workbuddy_generated_log_path)" ]');
+  assert.equal(await fs.readFile(unsupportedVersion.generatedLog, "utf8"), "preserve me\n");
+
+  const symlink = await createBundle("symlink", "5.3.5", { symlink: true });
+  await invoke(symlink, '[ ! -e "$(workbuddy_generated_log_path)" ]');
+  assert.equal((await fs.lstat(symlink.generatedLog)).isSymbolicLink(), true);
+
+  const alreadyValid = await createBundle("already-valid", "5.3.5");
+  const validBefore = await fs.stat(alreadyValid.generatedLog);
+  const validResult = await execFile("/bin/bash", ["-c", [
+    'source "$COMMON_PATH"',
+    'WORKBUDDY_BUNDLE="$TEST_BUNDLE"',
+    'WORKBUDDY_VERSION="5.3.5"',
+    "workbuddy_signature_is_valid() { return 0; }",
+    "workbuddy_signature_diagnostics() { exit 19; }",
+    "workbuddy_signature_is_valid_or_repaired",
+  ].join("; ")], {
+    env: {
+      ...process.env,
+      COMMON_PATH: commonPath,
+      TEST_BUNDLE: alreadyValid.bundle,
+      WORKBUDDY_DREAM_SKIN_HOME: alreadyValid.stateRoot,
+    },
+  });
+  assert.equal(validResult.stderr, "");
+  assert.equal((await fs.stat(alreadyValid.generatedLog)).ino, validBefore.ino);
+  await assert.rejects(fs.access(path.join(alreadyValid.stateRoot, "host-signature-repairs")));
+
+  const wrongTeamSentinel = path.join(root, "wrong-team-repair-called");
+  await assert.rejects(
+    execFile("/bin/bash", ["-c", [
+      'source "$COMMON_PATH"',
+      'WORKBUDDY_BUNDLE="$TEST_BUNDLE"',
+      'codesign_team_id() { printf "WRONGTEAM"; }',
+      'repair_workbuddy_generated_log_signature_drift() { : > "$SENTINEL"; return 0; }',
+      "require_workbuddy_runtime",
+    ].join("; ")], {
+      env: {
+        ...process.env,
+        COMMON_PATH: commonPath,
+        TEST_BUNDLE: alreadyValid.bundle,
+        SENTINEL: wrongTeamSentinel,
+        WORKBUDDY_DREAM_SKIN_HOME: alreadyValid.stateRoot,
+      },
+    }),
+    (error) => /Unexpected WorkBuddy signing team/.test(error.stderr),
+  );
+  await assert.rejects(fs.access(wrongTeamSentinel));
+});
+
 test("WorkBuddy macOS runtime is loopback-only, signature-bound, persistent, and reversible", async () => {
-  const [common, start, stop] = await Promise.all([
+  const [common, start, verify, stop] = await Promise.all([
     fs.readFile(path.join(ROOT, "scripts", "common-workbuddy-macos.sh"), "utf8"),
     fs.readFile(path.join(ROOT, "scripts", "start-workbuddy-skin-macos.sh"), "utf8"),
+    fs.readFile(path.join(ROOT, "scripts", "verify-workbuddy-skin-macos.sh"), "utf8"),
     fs.readFile(path.join(ROOT, "scripts", "stop-workbuddy-skin-macos.sh"), "utf8"),
   ]);
   assert.match(common, /SUPPORTED_WORKBUDDY_BUNDLE_IDS="com\.workbuddy\.workbuddy"/);
   assert.match(common, /EXPECTED_WORKBUDDY_TEAM_ID/);
   assert.match(common, /codesign --verify --deep --strict/);
+  assert.match(common, /WORKBUDDY_GENERATED_LOG_REPAIR_VERSION="5\.3\.5"/);
+  assert.match(common, /editor_sdk\.log/);
+  assert.match(common, /workbuddy_signature_is_valid_or_repaired/);
   assert.match(common, /WORKBUDDY_REMOTE_DEBUGGING_PORT/);
   assert.match(common, /--remote-debugging-address=127\.0\.0\.1/);
   assert.match(common, /port_listens_on_loopback_only/);
@@ -265,5 +620,9 @@ test("WorkBuddy macOS runtime is loopback-only, signature-bound, persistent, and
   assert.match(stop, /--remove/);
   assert.match(stop, /stop_owned_workbuddy_launch_agent/);
   assert.match(stop, /launch_workbuddy_normally/);
+  assert.ok(start.indexOf("acquire_operation_lock") < start.indexOf("require_workbuddy_runtime"));
+  assert.ok(verify.indexOf("acquire_operation_lock") < verify.indexOf("require_workbuddy_runtime"));
+  assert.match(stop, /workbuddy_signature_is_valid_or_repaired/);
+  assert.match(stop, /WORKBUDDY_VERSION="\$\(plist_value "\$WORKBUDDY_BUNDLE" CFBundleShortVersionString\)"/);
   assert.doesNotMatch([common, start, stop].join("\n"), /app\.asar\s+(?:extract|pack)|codesign\s+--force/);
 });

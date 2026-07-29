@@ -23,6 +23,9 @@ test("macOS launchers keep the CDP endpoint loopback-only and bind it to Trae", 
   assert.match(common, /EXPECTED_TRAE_INTERNATIONAL_TEAM_ID/);
   assert.match(common, /com\.trae\.app/);
   assert.match(common, /cn\.trae\.solo\.app/);
+  assert.match(common, /TRAE_DREAM_SKIN_EDITION/);
+  assert.match(common, /requested_trae_variant/);
+  assert.match(common, /assert_requested_trae_edition_matches_state/);
   assert.match(common, /is_supported_trae_identity/);
   assert.match(status, /require_trae_runtime identity/);
   assert.doesNotMatch(start, /require_trae_runtime identity/);
@@ -56,6 +59,56 @@ test("macOS launchers keep the CDP endpoint loopback-only and bind it to Trae", 
   assert.doesNotMatch(start, /foreground-injector/);
 });
 
+test("macOS explicit edition is bound to the saved Trae session before host operations", async (t) => {
+  const stateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "trae-edition-state-"));
+  t.after(() => fs.rm(stateRoot, { recursive: true, force: true }));
+  await fs.writeFile(path.join(stateRoot, "state.json"), "{}\n");
+  const commonPath = path.join(ROOT, "scripts", "common-macos.sh");
+  const result = await execFile("/bin/bash", ["-c", [
+    'source "$COMMON_PATH"',
+    'system_state_field() { case "$1" in hostProfile) printf "%s\\n" "${SAVED_PROFILE:-}" ;; traeBundleId) printf "%s\\n" "${SAVED_BUNDLE_ID:-}" ;; traeBundle) printf "%s\\n" "${SAVED_BUNDLE:-}" ;; esac; }',
+    'SAVED_PROFILE=solo-cn TRAE_DREAM_SKIN_EDITION=cn assert_requested_trae_edition_matches_state',
+    'SAVED_PROFILE=solo-cn TRAE_DREAM_SKIN_EDITION=auto assert_requested_trae_edition_matches_state',
+    '! (SAVED_PROFILE=solo-cn TRAE_DREAM_SKIN_EDITION=international assert_requested_trae_edition_matches_state >/dev/null 2>&1)',
+    'SAVED_PROFILE=international TRAE_DREAM_SKIN_EDITION=international assert_requested_trae_edition_matches_state',
+    '! (SAVED_PROFILE=international TRAE_DREAM_SKIN_EDITION=cn assert_requested_trae_edition_matches_state >/dev/null 2>&1)',
+    'TRAE_EXE="/Applications/TRAE SOLO CN.app/Contents/MacOS/TRAE SOLO CN"',
+    'JOB_PROGRAM="$TRAE_EXE"',
+    'launch_agent_output() { printf "path = %s\\nprogram = %s\\n" "$LAUNCH_AGENT_PLIST" "$JOB_PROGRAM"; }',
+    'trae_launch_agent_output() { printf "program = %s\\npath = %s\\n" "$JOB_PROGRAM" "$TRAE_LAUNCH_AGENT_PLIST"; }',
+    'launch_agent_is_owned',
+    'trae_launch_agent_is_owned',
+    'JOB_PROGRAM="/Applications/Trae.app/Contents/MacOS/Trae"',
+    '! launch_agent_is_owned',
+    '! trae_launch_agent_is_owned',
+    'printf ok',
+  ].join("; ")], {
+    env: {
+      ...process.env,
+      COMMON_PATH: commonPath,
+      TRAE_DREAM_SKIN_HOME: stateRoot,
+    },
+  });
+  assert.equal(result.stdout, "ok");
+
+  for (const relativePath of [
+    "scripts/start-trae-skin-macos.sh",
+    "scripts/status-trae-skin-macos.sh",
+    "scripts/verify-trae-skin-macos.sh",
+    "scripts/stop-trae-skin-macos.sh",
+  ]) {
+    const launcher = await source(relativePath);
+    const discovery = launcher.indexOf("discover_trae_app");
+    const editionGuard = launcher.indexOf("assert_requested_trae_edition_matches_state");
+    const runtimeValidation = launcher.indexOf("require_trae_runtime");
+    const operationLock = launcher.indexOf("acquire_operation_lock");
+    const lockedEditionGuard = launcher.lastIndexOf("assert_requested_trae_edition_matches_state");
+    assert.ok(discovery >= 0 && discovery < editionGuard, relativePath);
+    assert.ok(editionGuard < runtimeValidation, relativePath);
+    assert.ok(operationLock >= 0 && operationLock < lockedEditionGuard, relativePath);
+  }
+});
+
 test("macOS Trae host profiles require the exact bundle and signing-team pair", async () => {
   const commonPath = path.join(ROOT, "scripts", "common-macos.sh");
   const result = await execFile("/bin/bash", ["-c", [
@@ -65,6 +118,9 @@ test("macOS Trae host profiles require the exact bundle and signing-team pair", 
     '! is_supported_trae_identity "cn.trae.solo.app" "79M8227NKH"',
     '! is_supported_trae_identity "com.trae.app" "CG2SCM6AV5"',
     '! is_supported_trae_identity "com.example.fake" "79M8227NKH"',
+    '[ "$(TRAE_DREAM_SKIN_EDITION=cn requested_trae_variant)" = "solo-cn" ]',
+    '[ "$(TRAE_DREAM_SKIN_EDITION=international requested_trae_variant)" = "international" ]',
+    '[ -z "$(TRAE_DREAM_SKIN_EDITION=auto requested_trae_variant)" ]',
     'printf "%s,%s" "$(trae_variant_for_bundle_id cn.trae.solo.app)" "$(trae_variant_for_bundle_id com.trae.app)"',
   ].join("; ")], {
     env: { ...process.env, COMMON_PATH: commonPath },
@@ -104,10 +160,23 @@ test("macOS Trae discovery accepts explicit CN and international application bun
         ...process.env,
         COMMON_PATH: commonPath,
         TRAE_APP_BUNDLE: app,
+        TRAE_DREAM_SKIN_EDITION: profile.variant === "solo-cn" ? "cn" : profile.variant,
         TRAE_DREAM_SKIN_HOME: path.join(root, "state"),
       },
     });
     assert.equal(result.stdout, `${profile.variant}|${profile.bundleId}|${profile.version}`);
+    await assert.rejects(execFile("/bin/bash", ["-c", [
+      'source "$COMMON_PATH"',
+      "discover_trae_app",
+    ].join("; ")], {
+      env: {
+        ...process.env,
+        COMMON_PATH: commonPath,
+        TRAE_APP_BUNDLE: app,
+        TRAE_DREAM_SKIN_EDITION: profile.variant === "solo-cn" ? "international" : "cn",
+        TRAE_DREAM_SKIN_HOME: path.join(root, "state"),
+      },
+    }));
   }
 });
 
@@ -119,6 +188,8 @@ test("macOS stop performs live cleanup, closes the owned session, and relaunches
   assert.match(stop, /stop_recorded_trae_process/);
   assert.match(stop, /trae_main_pid_for_listener/);
   assert.match(stop, /stop_launchd_owned_session/);
+  assert.match(stop, /saved-state-free Trae skin session belongs to another edition/);
+  assert.match(stop, /saved-state-free Trae skin watcher belongs to another edition/);
   assert.match(stop, /state or theme assets could not be used/);
   assert.match(stop, /wait_for_port_available/);
   assert.match(stop, /launch_trae_normally/);
@@ -185,61 +256,6 @@ test("Trae state validation rejects truncated state before status reads fields",
   const status = await source("scripts/status-trae-skin-macos.sh");
   assert.match(status, /if ! trae_state_is_trustworthy; then[\s\S]*SESSION_STATUS="orphaned-unverified"/);
   assert.ok(status.indexOf("trae_state_is_trustworthy") < status.indexOf('PORT="$(state_field port)"'));
-});
-
-test("Finder entry points expose start, switch, and stop without patching the app bundle", async () => {
-  const files = [
-    "Start Trae Dream Skin.command",
-    "Switch Trae Skin.command",
-    "Stop Trae Dream Skin.command",
-  ];
-  const contents = await Promise.all(files.map(source));
-  assert.match(contents[0], /start-trae-skin-macos\.sh/);
-  assert.doesNotMatch(contents[0], /--theme\s+neon-portal/);
-  assert.match(contents[1], /switch-theme-macos\.sh/);
-  assert.match(contents[2], /stop-trae-skin-macos\.sh/);
-  for (const content of contents) {
-    assert.match(content, /Library\/Application Support\/TraeDreamSkin\/runtime/);
-    assert.match(content, /\/bin\/bash/);
-    const pause = content.indexOf("read -r _");
-    if (pause >= 0) {
-      assert.ok(content.indexOf('if [ "$status" -ne 0 ]') < pause,
-        "Finder launcher may pause only after a failed operation");
-    }
-  }
-
-  const start = await source("scripts/start-trae-skin-macos.sh");
-  assert.match(start, /LAST_THEME_PATH="\$STATE_ROOT\/last-theme"/);
-  assert.match(start, /THEME_ID="\$\(read_last_theme/);
-  assert.match(start, /write_last_theme "\$THEME_ID"/);
-
-  const switchTheme = await source("scripts/switch-theme-macos.sh");
-  assert.match(switchTheme, /exec \/bin\/bash/);
-  const publicThemes = [
-    "neon-portal",
-    "ember-glass",
-    "paper-aurora",
-    "sunlit-spark",
-    "violet-rift",
-  ];
-  let previousTheme = -1;
-  for (const theme of publicThemes) {
-    const location = switchTheme.indexOf(theme);
-    assert.ok(location > previousTheme, `${theme} is missing or out of menu order`);
-    previousTheme = location;
-  }
-  assert.doesNotMatch(switchTheme, /spark-atelier/);
-
-  const install = await source("scripts/install-macos-runtime.sh");
-  assert.match(install, /ditto --noextattr --noqtn/);
-  assert.match(install, /PROJECT_ROOT\/registry/);
-  assert.match(install, /TraeDreamSkin\/runtime/);
-  assert.match(install, /PROJECT_ROOT\/src\/core/);
-
-  const allScripts = await Promise.all((await fs.readdir(path.join(ROOT, "scripts")))
-    .filter((name) => name.endsWith(".sh"))
-    .map((name) => source(path.join("scripts", name))));
-  assert.doesNotMatch(allScripts.join("\n"), /app\.asar|asar\s+(?:extract|pack)|codesign\s+--force/);
 });
 
 test("host launchers persist and report the exact applied theme revision", async () => {

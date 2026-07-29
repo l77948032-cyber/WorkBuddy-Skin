@@ -1,10 +1,18 @@
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { validateDesktopResourceManifest } from "./desktop-layout.mjs";
+import {
+  createApplicationContext,
+  createTraeTargetRegistration,
+} from "./application-context.mjs";
 import { ToolError } from "./errors.mjs";
-import { createDreamSkinApplicationContext } from "./product-application-context.mjs";
 import { PROJECT_ROOT } from "./paths.mjs";
+import { VersionedRuntimeInstaller } from "./versioned-runtime-installer.mjs";
+import {
+  createWorkBuddyTargetRegistration,
+  WORKBUDDY_PLUGIN_ID,
+} from "./workbuddy-application-context.mjs";
 
 export const DREAMSKIN_PLUGIN_IDS = Object.freeze([
   "dreamskin.trae",
@@ -12,6 +20,19 @@ export const DREAMSKIN_PLUGIN_IDS = Object.freeze([
 ]);
 
 function defaultUserDataRoot(platform = process.platform, homeDir = os.homedir(), environment = process.env) {
+  if (platform === "darwin") {
+    return path.join(homeDir, "Library", "Application Support", "DreamSkin");
+  }
+  if (platform === "win32") {
+    return path.join(
+      environment.APPDATA || path.join(homeDir, "AppData", "Roaming"),
+      "DreamSkin",
+    );
+  }
+  return path.join(environment.XDG_CONFIG_HOME || path.join(homeDir, ".config"), "dreamskin");
+}
+
+function legacyUserDataRoot(platform = process.platform, homeDir = os.homedir(), environment = process.env) {
   if (platform === "darwin") {
     return path.join(homeDir, "Library", "Application Support", "DreamSkin Studio");
   }
@@ -46,10 +67,21 @@ export function resolveDreamSkinCliPaths({
   environment = process.env,
 } = {}) {
   const resourceRoot = path.resolve(environment.DREAMSKIN_RESOURCE_ROOT || PROJECT_ROOT);
+  const explicitUserDataRoot = environment.DREAMSKIN_USER_DATA_ROOT;
+  const explicitDataRoot = environment.DREAMSKIN_DATA_ROOT;
+  const legacyRoot = legacyUserDataRoot(platform, homeDir, environment);
+  const legacyDataRoot = path.join(legacyRoot, "dreamskin");
+  const useLegacyData = !explicitUserDataRoot
+    && !explicitDataRoot
+    && fs.existsSync(legacyDataRoot);
   const userDataRoot = path.resolve(
-    environment.DREAMSKIN_USER_DATA_ROOT || defaultUserDataRoot(platform, homeDir, environment),
+    explicitUserDataRoot
+      || (useLegacyData ? legacyRoot : defaultUserDataRoot(platform, homeDir, environment)),
   );
-  const dataRoot = path.resolve(environment.DREAMSKIN_DATA_ROOT || path.join(userDataRoot, "dreamskin"));
+  const dataRoot = path.resolve(
+    explicitDataRoot
+      || (useLegacyData ? legacyDataRoot : path.join(userDataRoot, "data")),
+  );
   const appDataRoot = path.dirname(userDataRoot);
   const trae = targetPaths({
     resourceRoot,
@@ -67,6 +99,7 @@ export function resolveDreamSkinCliPaths({
     resourceRoot,
     userDataRoot,
     dataRoot,
+    migratedFromStudio: useLegacyData,
     packaged: environment.DREAMSKIN_PACKAGED === "1",
     runtimeStateRoots: Object.freeze({
       "dreamskin.trae": path.resolve(
@@ -83,14 +116,49 @@ export function resolveDreamSkinCliPaths({
   });
 }
 
+function selectedPluginIds(pluginIds) {
+  const values = pluginIds === undefined ? DREAMSKIN_PLUGIN_IDS : pluginIds;
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new ToolError("INVALID_TARGET", "CLI context requires at least one supported target.");
+  }
+  const unique = [...new Set(values)];
+  const unsupported = unique.filter((pluginId) => !DREAMSKIN_PLUGIN_IDS.includes(pluginId));
+  if (unsupported.length) {
+    throw new ToolError("INVALID_TARGET", "CLI context received an unsupported target.", {
+      unsupported,
+      supported: [...DREAMSKIN_PLUGIN_IDS],
+    });
+  }
+  return unique;
+}
+
+async function installCliRuntimes(paths, pluginIds) {
+  const packageRoot = path.join(paths.resourceRoot, "build", "cli-runtime");
+  const runtimeRoot = path.join(paths.dataRoot, "runtime");
+  const roots = {};
+  for (const pluginId of pluginIds) {
+    const sourceRoot = path.join(packageRoot, pluginId);
+    try {
+      const installer = new VersionedRuntimeInstaller({
+        runtimeRoot,
+        namespace: pluginId,
+      });
+      const installed = await installer.install({ sourceRoot });
+      roots[pluginId] = installed.root;
+    } catch (error) {
+      if (error.code !== "RUNTIME_PACKAGE_MISSING" || paths.packaged) throw error;
+      roots[pluginId] = paths.resourceRoot;
+    }
+  }
+  return Object.freeze(roots);
+}
+
 export async function createDreamSkinCliContext(options = {}) {
   const paths = resolveDreamSkinCliPaths(options);
-  if (paths.packaged) {
-    await validateDesktopResourceManifest({ resourceRoot: paths.resourceRoot });
-  }
+  const pluginIds = selectedPluginIds(options.pluginIds);
+  const runtimeRoots = await installCliRuntimes(paths, pluginIds);
   process.env.TRAE_DREAM_SKIN_HOME = paths.runtimeStateRoots["dreamskin.trae"];
-  const scriptsRoot = path.join(paths.resourceRoot, "scripts");
-  const registration = (target) => ({
+  const registration = (target, runtimeRoot) => ({
     themesRoot: target.themesRoot,
     dataRoot: target.dataRoot,
     backupsRoot: target.backupsRoot,
@@ -99,30 +167,48 @@ export async function createDreamSkinCliContext(options = {}) {
     pluginManifestPath: target.pluginManifestPath,
     catalogThemesRoot: target.catalogThemesRoot,
     registryPath: target.registryPath,
-    scriptsRoot,
+    scriptsRoot: path.join(runtimeRoot, "scripts"),
   });
-  const context = await createDreamSkinApplicationContext({
+  const targets = [];
+  if (pluginIds.includes("dreamskin.trae")) {
+    targets.push(await createTraeTargetRegistration(registration(
+      paths.targets["dreamskin.trae"],
+      runtimeRoots["dreamskin.trae"],
+    )));
+  }
+  if (pluginIds.includes(WORKBUDDY_PLUGIN_ID)) {
+    const runtimeRoot = runtimeRoots[WORKBUDDY_PLUGIN_ID];
+    targets.push(await createWorkBuddyTargetRegistration({
+      ...registration(paths.targets[WORKBUDDY_PLUGIN_ID], runtimeRoot),
+      cssPath: path.join(runtimeRoot, "plugins", "workbuddy", "assets", "workbuddy-skin.css"),
+      templatePath: path.join(runtimeRoot, "assets", "workbuddy-renderer-inject.js"),
+      registryPath: path.join(runtimeRoot, "plugins", "workbuddy", "resources", "components.v1.json"),
+      stateRoot: paths.runtimeStateRoots[WORKBUDDY_PLUGIN_ID],
+    }));
+  }
+  const context = await createApplicationContext({
+    targets,
+    defaultPluginId: pluginIds[0],
     projectRoot: paths.resourceRoot,
     dataRoot: paths.dataRoot,
-    themesRoot: path.join(paths.dataRoot, "themes"),
-    traeOptions: registration(paths.targets["dreamskin.trae"]),
-    workBuddyOptions: {
-      ...registration(paths.targets["dreamskin.workbuddy"]),
-      cssPath: path.join(paths.targets["dreamskin.workbuddy"].pluginRoot, "assets", "workbuddy-skin.css"),
-      templatePath: path.join(paths.resourceRoot, "assets", "workbuddy-renderer-inject.js"),
-      stateRoot: paths.runtimeStateRoots["dreamskin.workbuddy"],
-    },
   });
   return Object.freeze({
     paths,
+    runtimeRoots,
     context,
     tool: context.tool,
+    runtime: context.runtime,
     targets: () => context.pluginManager.list().map((entry) => ({
       pluginId: entry.id,
       targetId: entry.manifest.target.id,
       name: entry.manifest.target.name,
       version: entry.manifest.version,
       active: entry.active,
+      supported: entry.manifest.target.platforms.includes(options.platform || process.platform),
+      platforms: [...entry.manifest.target.platforms],
+      editions: entry.id === "dreamskin.trae"
+        ? ["auto", "international", "cn"]
+        : [],
     })),
     async close() {
       const active = context.pluginManager.list({ state: "active" });

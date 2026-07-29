@@ -24,16 +24,55 @@ function outputBuffer() {
   };
 }
 
-function runtimeFixture({ targets = [], execute } = {}) {
+function runtimeFixture({ targets = [], execute, runtimeResults = {} } = {}) {
   const calls = [];
+  const runtimeCalls = [];
   return {
     calls,
+    runtimeCalls,
+    paths: {
+      dataRoot: "/tmp/dreamskin-data",
+      targets: {
+        [TRAE]: { themesRoot: "/tmp/dreamskin-data/themes/trae" },
+        [WORKBUDDY]: { themesRoot: "/tmp/dreamskin-data/themes/workbuddy" },
+      },
+      runtimeStateRoots: {
+        [TRAE]: "/tmp/trae-runtime",
+        [WORKBUDDY]: "/tmp/workbuddy-runtime",
+      },
+    },
+    runtimeRoots: {
+      [TRAE]: "/tmp/dreamskin-runtime/trae",
+      [WORKBUDDY]: "/tmp/dreamskin-runtime/workbuddy",
+    },
     targets: () => structuredClone(targets),
     tool: {
       async execute(input) {
         calls.push(structuredClone(input));
         if (execute) return execute(input);
         return { action: input.action };
+      },
+    },
+    runtime: {
+      async status(pluginId) {
+        runtimeCalls.push({ action: "status", pluginId });
+        return runtimeResults.status || { session: "off" };
+      },
+      async apply(themeId, pluginId) {
+        runtimeCalls.push({ action: "apply", pluginId, themeId });
+        return runtimeResults.apply || { applied: true, themeId };
+      },
+      async verify(input, pluginId) {
+        runtimeCalls.push({ action: "verify", pluginId, input: structuredClone(input) });
+        return runtimeResults.verify || { pass: true };
+      },
+      async preview(input, pluginId) {
+        runtimeCalls.push({ action: "preview", pluginId, input: structuredClone(input) });
+        return runtimeResults.preview || { preview: { pass: true } };
+      },
+      async restore(pluginId) {
+        runtimeCalls.push({ action: "restore", pluginId });
+        return runtimeResults.restore || { restored: true };
       },
     },
   };
@@ -72,6 +111,194 @@ test("targets emits the stable JSON v1 envelope without invoking the theme tool"
     result: { targets },
   });
   assert.deepEqual(runtime.calls, []);
+});
+
+test("friendly target aliases expose runtime apply, status, verify, preview, and restore", async () => {
+  const runtime = runtimeFixture();
+  const cases = [
+    {
+      argv: ["status", "--target", "workbuddy"],
+      expected: { action: "status", pluginId: WORKBUDDY },
+    },
+    {
+      argv: ["apply", "orchid-night", "--target", "workbuddy"],
+      expected: { action: "apply", pluginId: WORKBUDDY, themeId: "orchid-night" },
+    },
+    {
+      argv: ["verify", "--target", "trae", "--screenshot", "./capture.png"],
+      expected: {
+        action: "verify",
+        pluginId: TRAE,
+        input: { screenshotPath: path.resolve("./capture.png") },
+      },
+    },
+    {
+      argv: ["preview", "paper-aurora", "--target", "trae"],
+      expected: {
+        action: "preview",
+        pluginId: TRAE,
+        input: { id: "paper-aurora", screenshot: true },
+      },
+    },
+    {
+      argv: ["restore", "--target", "workbuddy"],
+      expected: { action: "restore", pluginId: WORKBUDDY },
+    },
+  ];
+  for (const fixture of cases) {
+    const before = runtime.runtimeCalls.length;
+    const result = await invoke(fixture.argv, runtime);
+    assert.equal(result.code, 0, fixture.argv.join(" "));
+    assert.deepEqual(runtime.runtimeCalls.slice(before), [fixture.expected]);
+    assert.equal(result.envelope.scope.pluginId, fixture.expected.pluginId);
+  }
+});
+
+test("Trae runtime commands expose an explicit edition selector without leaking process state", async () => {
+  const runtime = runtimeFixture();
+  let observedEdition;
+  runtime.runtime.status = async (pluginId) => {
+    observedEdition = process.env.TRAE_DREAM_SKIN_EDITION;
+    runtime.runtimeCalls.push({ action: "status", pluginId });
+    return { session: "off" };
+  };
+  const previous = process.env.TRAE_DREAM_SKIN_EDITION;
+  process.env.TRAE_DREAM_SKIN_EDITION = "auto";
+  try {
+    const selected = await invoke([
+      "status", "--target", "trae", "--edition", "international",
+    ], runtime);
+    assert.equal(selected.code, 0);
+    assert.equal(observedEdition, "international");
+    assert.equal(selected.envelope.scope.edition, "international");
+    assert.equal(process.env.TRAE_DREAM_SKIN_EDITION, "auto");
+
+    for (const argv of [
+      ["status", "--target", "trae", "--edition", "unknown"],
+      ["status", "--target", "workbuddy", "--edition", "cn"],
+    ]) {
+      const rejected = await invoke(argv, runtime);
+      assert.equal(rejected.code, 1);
+      assert.match(rejected.envelope.error.code, /^INVALID_(?:ARGUMENT|EDITION)$/);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TRAE_DREAM_SKIN_EDITION;
+    else process.env.TRAE_DREAM_SKIN_EDITION = previous;
+  }
+});
+
+test("Trae runtime failures report the effective auto edition in their scope", async () => {
+  const runtime = runtimeFixture();
+  runtime.runtime.status = async () => {
+    throw new ToolError("TARGET_NOT_FOUND", "Trae is not installed.");
+  };
+
+  const result = await invoke(["status", "--target", "trae"], runtime);
+
+  assert.equal(result.code, 1);
+  assert.deepEqual(result.envelope.scope, {
+    pluginId: TRAE,
+    edition: "auto",
+  });
+  assert.equal(result.envelope.error.code, "TARGET_NOT_FOUND");
+});
+
+test("subcommand help is context-free and succeeds without creating runtime state", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dreamskin-cli-help-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const previousDataRoot = process.env.DREAMSKIN_DATA_ROOT;
+  process.env.DREAMSKIN_DATA_ROOT = path.join(root, "data");
+  try {
+    const stdout = outputBuffer();
+    const stderr = outputBuffer();
+    const code = await runCli(["theme", "create", "--help"], undefined, {
+      stdout,
+      stderr,
+      stdin: async () => "",
+    });
+    const envelope = JSON.parse(stdout.value);
+    assert.equal(code, 0);
+    assert.equal(envelope.operation, "help");
+    assert.equal(envelope.ok, true);
+    await assert.rejects(
+      fs.access(path.join(root, "data")),
+      (error) => error.code === "ENOENT",
+    );
+  } finally {
+    if (previousDataRoot === undefined) delete process.env.DREAMSKIN_DATA_ROOT;
+    else process.env.DREAMSKIN_DATA_ROOT = previousDataRoot;
+  }
+});
+
+test("template discovery and installation use the target-owned catalog", async () => {
+  const runtime = runtimeFixture({
+    execute(input) {
+      if (input.action === "inspect") {
+        return {
+          catalog: {
+            targetId: "workbuddy",
+            templates: [{ id: "orchid-night", name: "Orchid Night" }],
+          },
+        };
+      }
+      return { action: input.action };
+    },
+  });
+  const listed = await invoke(["templates", "--target", "workbuddy"], runtime);
+  assert.equal(listed.code, 0);
+  assert.deepEqual(listed.envelope.result.templates, [{ id: "orchid-night", name: "Orchid Night" }]);
+
+  const installed = await invoke([
+    "template", "install", "orchid-night", "--as", "my-orchid", "--target", "workbuddy",
+  ], runtime);
+  assert.equal(installed.code, 0);
+  assert.deepEqual(runtime.calls.at(-1), {
+    action: "create",
+    pluginId: WORKBUDDY,
+    themeId: "my-orchid",
+    sourceId: "orchid-night",
+    themePatch: {},
+  });
+});
+
+test("paths and doctor remain target-scoped and machine-readable", async () => {
+  const targets = [
+    {
+      pluginId: TRAE,
+      targetId: "trae",
+      name: "Trae",
+      version: "0.5.0",
+      active: true,
+      supported: true,
+      platforms: ["darwin", "win32"],
+    },
+    {
+      pluginId: WORKBUDDY,
+      targetId: "workbuddy",
+      name: "WorkBuddy",
+      version: "0.5.0",
+      active: true,
+      supported: true,
+      platforms: ["darwin"],
+    },
+  ];
+  const runtime = runtimeFixture({ targets });
+  const paths = await invoke(["paths", "--target", "trae"], runtime);
+  assert.equal(paths.code, 0);
+  assert.deepEqual(paths.envelope.result.targets, [{
+    pluginId: TRAE,
+    themesRoot: "/tmp/dreamskin-data/themes/trae",
+    runtimeRoot: "/tmp/dreamskin-runtime/trae",
+    runtimeStateRoot: "/tmp/trae-runtime",
+  }]);
+
+  const doctor = await invoke(["doctor"], runtime);
+  assert.equal(doctor.code, 0);
+  assert.equal(doctor.envelope.result.targets.length, 2);
+  assert.deepEqual(runtime.runtimeCalls, [
+    { action: "status", pluginId: TRAE },
+    { action: "status", pluginId: WORKBUDDY },
+  ]);
 });
 
 test("all structured theme actions require explicit target scope and dispatch exact ToolCore input", async () => {
@@ -122,6 +349,18 @@ test("all structured theme actions require explicit target scope and dispatch ex
     {
       argv: ["theme", "validate", "focus", "--plugin", WORKBUDDY],
       expected: { action: "validate", pluginId: WORKBUDDY, themeId: "focus" },
+    },
+    {
+      argv: [
+        "theme", "delete", "focus", "--target", "workbuddy",
+        "--expected-revision", "c".repeat(64),
+      ],
+      expected: {
+        action: "delete",
+        pluginId: WORKBUDDY,
+        themeId: "focus",
+        expectedRevision: "c".repeat(64),
+      },
     },
   ];
 
@@ -222,7 +461,7 @@ test("every theme action rejects omitted plugin scope before calling ToolCore", 
     const result = await invoke(argv, runtime);
     assert.equal(result.code, 1, argv.join(" "));
     assert.equal(result.envelope.error.code, "INVALID_ARGUMENT", argv.join(" "));
-    assert.match(result.envelope.error.message, /requires --plugin/);
+    assert.match(result.envelope.error.message, /requires --target/);
     assert.deepEqual(runtime.calls, []);
   }
 });

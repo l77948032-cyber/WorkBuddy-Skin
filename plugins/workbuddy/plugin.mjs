@@ -152,6 +152,10 @@ export async function createWorkBuddyPlugin({
           const { operation: _operation, transactionId: _transactionId, ...writeInput } = input;
           return service.themeWrite({ ...writeInput, id, operation: "write" });
         }
+        case "delete":
+          return service.themeDelete(requireId(input), {
+            expectedRevision: input.expectedRevision,
+          });
         case "importAsset": {
           const id = requireId(input);
           return service.themeWrite({

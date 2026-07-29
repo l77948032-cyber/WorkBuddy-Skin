@@ -14,6 +14,7 @@ try {
   $stateUnreadable = $false
   $state = $null
   try { $state = Read-TraeSkinState } catch { $stateUnreadable = $stateFilePresent }
+  Assert-TraeSkinRequestedEditionMatchesState -State $state
   $currentTrae = $null
   try { $currentTrae = Get-TraeSkinInstall } catch { Write-Warning $_.Exception.Message }
   if ($null -eq $state) {

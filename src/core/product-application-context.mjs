@@ -10,9 +10,9 @@ import {
   WORKBUDDY_PLUGIN_ID,
 } from "./workbuddy-application-context.mjs";
 import {
+  DREAMSKIN_DATA_ROOT,
+  DREAMSKIN_THEMES_ROOT,
   PROJECT_ROOT,
-  STUDIO_DATA_ROOT,
-  STUDIO_THEMES_ROOT,
 } from "./paths.mjs";
 
 /**
@@ -21,8 +21,8 @@ import {
  */
 export async function createDreamSkinApplicationContext({
   projectRoot = PROJECT_ROOT,
-  dataRoot = STUDIO_DATA_ROOT,
-  themesRoot = STUDIO_THEMES_ROOT,
+  dataRoot = DREAMSKIN_DATA_ROOT,
+  themesRoot = DREAMSKIN_THEMES_ROOT,
   defaultPluginId = DEFAULT_PLUGIN_ID,
   traeOptions = {},
   workBuddyOptions = {},

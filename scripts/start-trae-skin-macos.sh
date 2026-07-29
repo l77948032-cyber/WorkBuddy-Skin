@@ -52,10 +52,12 @@ case "$PORT" in ''|*[!0-9]*) fail "Invalid port: $PORT" ;; esac
 [ "$PORT" -ge 1024 ] && [ "$PORT" -le 65535 ] || fail "Port must be between 1024 and 65535."
 
 discover_trae_app
+assert_requested_trae_edition_matches_state
 require_trae_runtime
 ensure_state_root
 acquire_operation_lock
 trap release_operation_lock EXIT
+assert_requested_trae_edition_matches_state
 
 if [ -f "$STATE_PATH" ]; then
   if [ "$PORT_EXPLICIT" = "false" ]; then

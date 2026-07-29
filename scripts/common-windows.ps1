@@ -1,5 +1,5 @@
 # This lifecycle is statically checked on macOS; release it only after a real Windows Trae smoke test.
-$Script:TraeSkinVersion = '0.4.2'
+$Script:TraeSkinVersion = '0.5.2'
 $Script:TraeSkinDefaultPort = 9342
 $Script:TraeSkinDefaultTheme = 'neon-portal'
 $Script:TraeSkinProjectRoot = Split-Path -Parent $PSScriptRoot
@@ -66,6 +66,16 @@ function Assert-TraeSkinPort {
   param([Parameter(Mandatory = $true)][int]$Port)
   if ($Port -lt 1024 -or $Port -gt 65535) {
     Fail-TraeSkin "Port must be between 1024 and 65535: $Port"
+  }
+}
+
+function Get-TraeSkinRequestedHostProfile {
+  $edition = "$($env:TRAE_DREAM_SKIN_EDITION)".Trim().ToLowerInvariant()
+  switch ($edition) {
+    { $_ -in @('', 'auto') } { return $null }
+    { $_ -in @('cn', 'solo-cn') } { return 'solo-cn' }
+    'international' { return 'international' }
+    default { Fail-TraeSkin 'TRAE_DREAM_SKIN_EDITION must be auto, cn, or international.' }
   }
 }
 
@@ -215,8 +225,19 @@ function Get-TraeSkinShortcutTarget {
 }
 
 function Get-TraeSkinInstall {
+  $requestedHostProfile = Get-TraeSkinRequestedHostProfile
+  if ($env:TRAE_EXE) {
+    $configuredInstall = ConvertTo-TraeSkinInstall -Executable $env:TRAE_EXE
+    if ($null -eq $configuredInstall) {
+      Fail-TraeSkin 'TRAE_EXE is not a supported official signed Trae executable.'
+    }
+    if ($requestedHostProfile -and $configuredInstall.HostProfile -ine $requestedHostProfile) {
+      Fail-TraeSkin 'TRAE_EXE does not match the requested Trae edition.'
+    }
+    return $configuredInstall
+  }
+
   $candidates = [System.Collections.Generic.List[string]]::new()
-  Add-TraeSkinCandidate -Candidates $candidates -Path $env:TRAE_EXE
 
   $appPathRoots = @(
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths',
@@ -316,9 +337,22 @@ function Get-TraeSkinInstall {
     } catch {}
   }
 
+  $installs = @()
   foreach ($candidate in $candidates) {
     $install = ConvertTo-TraeSkinInstall -Executable $candidate
-    if ($null -ne $install) { return $install }
+    if ($null -eq $install) { continue }
+    if ($requestedHostProfile -and $install.HostProfile -ine $requestedHostProfile) { continue }
+    if ($installs | Where-Object { Test-TraeSkinPathEqual -Left $_.Executable -Right $install.Executable }) {
+      continue
+    }
+    $installs += $install
+  }
+  if ($installs.Count -eq 1) { return $installs[0] }
+  if ($installs.Count -gt 1) {
+    Fail-TraeSkin 'Multiple official Trae installations match. Set --edition or TRAE_EXE to choose one.'
+  }
+  if ($requestedHostProfile) {
+    Fail-TraeSkin "The requested official Trae edition was not found: $($env:TRAE_DREAM_SKIN_EDITION)."
   }
   Fail-TraeSkin 'An official signed Trae International or TRAE SOLO CN installation was not found. Set TRAE_EXE only when auto-discovery misses an official install.'
 }
@@ -335,6 +369,33 @@ function Get-TraeSkinInstallFromState {
     return $null
   }
   return $install
+}
+
+function Assert-TraeSkinRequestedEditionMatchesState {
+  param([AllowNull()][object]$State)
+  if ($null -eq $State) { return }
+  $requestedHostProfile = Get-TraeSkinRequestedHostProfile
+  if (-not $requestedHostProfile) { return }
+
+  $savedHostProfile = "$($State.hostProfile)".Trim().ToLowerInvariant()
+  if ($savedHostProfile -notin @('solo-cn', 'international')) {
+    $savedInstall = Get-TraeSkinInstallFromState -State $State
+    if ($null -ne $savedInstall) { $savedHostProfile = "$($savedInstall.HostProfile)" }
+  }
+  if ($savedHostProfile -notin @('solo-cn', 'international')) {
+    Fail-TraeSkin 'The saved Trae skin session cannot be matched to an edition. Restore it with --edition auto before selecting an explicit edition.'
+  }
+  if ($savedHostProfile -ine $requestedHostProfile) {
+    Fail-TraeSkin "The saved Trae skin session belongs to $savedHostProfile. Restore it with that edition or --edition auto before selecting $requestedHostProfile."
+  }
+}
+
+function Test-TraeSkinInstallMatchesRequestedEdition {
+  param([AllowNull()][object]$Trae)
+  if ($null -eq $Trae) { return $false }
+  $requestedHostProfile = Get-TraeSkinRequestedHostProfile
+  return [bool](-not $requestedHostProfile -or
+    "$($Trae.HostProfile)" -ieq $requestedHostProfile)
 }
 
 function Ensure-TraeSkinStateRoot {
@@ -663,6 +724,8 @@ function Get-TraeSkinStandaloneOrphanWatcherScan {
 
       $path = Get-TraeSkinProcessExecutablePath -ProcessInfo $process
       $trae = if ($path) { ConvertTo-TraeSkinInstall -Executable $path } else { $null }
+      if ($null -ne $trae -and
+        -not (Test-TraeSkinInstallMatchesRequestedEdition -Trae $trae)) { continue }
       $startedAt = Get-TraeSkinProcessStartedAt -ProcessId $processId
       if ($null -eq $trae -or -not $startedAt -or
         -not (Test-TraeSkinApplicationProcessIdentity -Trae $trae -ProcessId $processId -StartedAt $startedAt)) {
@@ -735,6 +798,8 @@ function Get-TraeSkinOrphanSessionScan {
 
       $path = Get-TraeSkinProcessExecutablePath -ProcessInfo $process
       $trae = if ($path) { ConvertTo-TraeSkinInstall -Executable $path } else { $null }
+      if ($null -ne $trae -and
+        -not (Test-TraeSkinInstallMatchesRequestedEdition -Trae $trae)) { continue }
       $startedAt = Get-TraeSkinProcessStartedAt -ProcessId $processId
       if ($null -eq $trae -or -not $startedAt -or
         -not (Test-TraeSkinApplicationProcessIdentity -Trae $trae -ProcessId $processId -StartedAt $startedAt)) {

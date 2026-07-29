@@ -10,6 +10,43 @@ import { TraeDreamSkinService } from "../src/core/service.mjs";
 const PREVIOUS_REVISION = "a".repeat(64);
 const CANDIDATE_REVISION = "b".repeat(64);
 
+test("delete refuses active or ambiguous runtime themes and preserves revision checks", async () => {
+  const deleted = [];
+  const repository = {
+    withLock: async (action) => action(),
+    delete: async (id, options) => {
+      deleted.push([id, options]);
+      return { deleted: true, id, ...options };
+    },
+  };
+  const sessions = [
+    { session: "active", themeId: "active-theme", themeRevision: PREVIOUS_REVISION },
+    { session: "orphaned" },
+    { session: "off" },
+  ];
+  const service = new TraeDreamSkinService({
+    repository,
+    runtime: {
+      descriptor: () => ({ platform: "test", supported: true }),
+      status: async () => sessions.shift(),
+    },
+  });
+
+  await assert.rejects(
+    () => service.themeDelete("active-theme", { expectedRevision: PREVIOUS_REVISION }),
+    (error) => error.code === "THEME_ACTIVE" && error.details.themeId === "active-theme",
+  );
+  await assert.rejects(
+    () => service.themeDelete("other-theme", { expectedRevision: PREVIOUS_REVISION }),
+    (error) => error.code === "THEME_ACTIVE" && error.details.runtimeSession === "orphaned",
+  );
+  assert.deepEqual(
+    await service.themeDelete("inactive-theme", { expectedRevision: CANDIDATE_REVISION }),
+    { deleted: true, id: "inactive-theme", expectedRevision: CANDIDATE_REVISION },
+  );
+  assert.deepEqual(deleted, [["inactive-theme", { expectedRevision: CANDIDATE_REVISION }]]);
+});
+
 test("preview restores the previous active theme after verification", async () => {
   const calls = [];
   let repositoryLocked = false;
@@ -177,4 +214,7 @@ test("inspect exposes semantic components without leaking runtime selectors", as
   assert.equal(result.registry.components[0].id, "composer.surface");
   assert.equal(result.registry.components[0].runtimeMappingCount, 1);
   assert.equal("selectors" in result.registry.components[0], false);
+  const toolResult = await service.toolInspect();
+  assert.equal(toolResult.safety.runtimeActionsExposedToCli, true);
+  assert.equal("runtimeActionsExposedToAgent" in toolResult.safety, false);
 });

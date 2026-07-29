@@ -11,7 +11,7 @@ WORKBUDDY_RENDERER_TEMPLATE_PATH="${WORKBUDDY_DREAM_SKIN_TEMPLATE_PATH:-$PROJECT
 WORKBUDDY_COMPONENT_REGISTRY_PATH="${WORKBUDDY_DREAM_SKIN_REGISTRY_PATH:-$PROJECT_ROOT/plugins/workbuddy/resources/components.v1.json}"
 DEFAULT_THEME_ID="harbor-focus"
 DEFAULT_PORT="9432"
-SKIN_VERSION="0.4.2"
+SKIN_VERSION="0.5.2"
 
 STATE_ROOT="${WORKBUDDY_DREAM_SKIN_HOME:-$HOME/Library/Application Support/WorkBuddyDreamSkin}"
 STATE_PATH="$STATE_ROOT/state.json"
@@ -32,6 +32,9 @@ OPERATION_LOCK_HELD="false"
 
 EXPECTED_WORKBUDDY_TEAM_ID="${WORKBUDDY_EXPECTED_TEAM_ID:-FN2V63AD2J}"
 SUPPORTED_WORKBUDDY_BUNDLE_IDS="com.workbuddy.workbuddy"
+WORKBUDDY_GENERATED_LOG_REPAIR_VERSION="5.3.5"
+WORKBUDDY_GENERATED_LOG_RELATIVE_PATH="Contents/Resources/app.asar.unpacked/node_modules/@tencent/tencent-docs-ai-engine/bin/darwin-arm64/editor_sdk.log"
+WORKBUDDY_SIGNATURE_REPAIR_ROOT="$STATE_ROOT/host-signature-repairs"
 
 fail() {
   printf 'WorkBuddy Dream Skin: %s\n' "$*" >&2
@@ -135,6 +138,102 @@ codesign_team_id() {
     | /usr/bin/awk -F= '/^TeamIdentifier=/{print $2; exit}'
 }
 
+workbuddy_signature_is_valid() {
+  /usr/bin/codesign --verify --deep --strict "$WORKBUDDY_BUNDLE" >/dev/null 2>&1
+}
+
+workbuddy_signature_diagnostics() {
+  LC_ALL=C /usr/bin/codesign --verify --deep --strict --verbose=1 \
+    "$WORKBUDDY_BUNDLE" 2>&1
+}
+
+workbuddy_generated_log_path() {
+  printf '%s/%s' "$WORKBUDDY_BUNDLE" "$WORKBUDDY_GENERATED_LOG_RELATIVE_PATH"
+}
+
+is_known_workbuddy_generated_log_failure() {
+  local diagnostics="$1"
+  local generated_log=""
+  local expected=""
+  generated_log="$(workbuddy_generated_log_path)"
+  expected="$WORKBUDDY_BUNDLE: a sealed resource is missing or invalid
+file added: $generated_log"
+  [ "$diagnostics" = "$expected" ]
+}
+
+repair_workbuddy_generated_log_signature_drift() {
+  local generated_log=""
+  local bundle_root=""
+  local generated_log_parent=""
+  local expected_parent=""
+  local actual_version=""
+  local file_owner=""
+  local file_links=""
+  local file_size=""
+  local repair_dir=""
+  local repair_path=""
+
+  actual_version="$(plist_value "$WORKBUDDY_BUNDLE" CFBundleShortVersionString)"
+  [ "$actual_version" = "$WORKBUDDY_GENERATED_LOG_REPAIR_VERSION" ] || return 1
+  generated_log="$(workbuddy_generated_log_path)"
+  [ -f "$generated_log" ] && [ ! -L "$generated_log" ] || return 1
+
+  bundle_root="$(cd "$WORKBUDDY_BUNDLE" 2>/dev/null && pwd -P)" || return 1
+  generated_log_parent="$(cd "$(dirname "$generated_log")" 2>/dev/null && pwd -P)" || return 1
+  expected_parent="$bundle_root/$(dirname "$WORKBUDDY_GENERATED_LOG_RELATIVE_PATH")"
+  [ "$generated_log_parent" = "$expected_parent" ] || return 1
+
+  file_owner="$(/usr/bin/stat -f '%u' "$generated_log" 2>/dev/null || true)"
+  file_links="$(/usr/bin/stat -f '%l' "$generated_log" 2>/dev/null || true)"
+  file_size="$(/usr/bin/stat -f '%z' "$generated_log" 2>/dev/null || true)"
+  [ "$file_owner" = "$(/usr/bin/id -u)" ] && [ "$file_links" = "1" ] || return 1
+  case "$file_size" in ''|*[!0-9]*) return 1 ;; esac
+
+  ensure_state_root
+  if [ -e "$WORKBUDDY_SIGNATURE_REPAIR_ROOT" ]; then
+    [ -d "$WORKBUDDY_SIGNATURE_REPAIR_ROOT" ] \
+      && [ ! -L "$WORKBUDDY_SIGNATURE_REPAIR_ROOT" ] || return 1
+  else
+    /bin/mkdir -p "$WORKBUDDY_SIGNATURE_REPAIR_ROOT" || return 1
+  fi
+  /bin/chmod 700 "$WORKBUDDY_SIGNATURE_REPAIR_ROOT" || return 1
+  repair_dir="$(/usr/bin/mktemp -d "$WORKBUDDY_SIGNATURE_REPAIR_ROOT/workbuddy-$actual_version.XXXXXX")" \
+    || return 1
+  /bin/chmod 700 "$repair_dir" || {
+    /bin/rmdir "$repair_dir" 2>/dev/null || true
+    return 1
+  }
+  repair_path="$repair_dir/editor_sdk.log"
+  if ! /bin/mv "$generated_log" "$repair_path"; then
+    /bin/rmdir "$repair_dir" 2>/dev/null || true
+    return 1
+  fi
+
+  if workbuddy_signature_is_valid; then
+    WORKBUDDY_SIGNATURE_REPAIR_PATH="$repair_path"
+    export WORKBUDDY_SIGNATURE_REPAIR_PATH
+    printf 'WorkBuddy Dream Skin: isolated WorkBuddy 5.3.5 generated log outside the signed app bundle: %s\n' \
+      "$repair_path" >&2
+    return 0
+  fi
+
+  if [ ! -e "$generated_log" ] && /bin/mv "$repair_path" "$generated_log"; then
+    /bin/rmdir "$repair_dir" 2>/dev/null || true
+  else
+    printf 'WorkBuddy Dream Skin: warning: signature repair failed and the generated log remains preserved at %s\n' \
+      "$repair_path" >&2
+  fi
+  return 1
+}
+
+workbuddy_signature_is_valid_or_repaired() {
+  local diagnostics=""
+  workbuddy_signature_is_valid && return 0
+  diagnostics="$(workbuddy_signature_diagnostics || true)"
+  is_known_workbuddy_generated_log_failure "$diagnostics" || return 1
+  repair_workbuddy_generated_log_signature_drift
+}
+
 sha256_file() {
   /usr/bin/shasum -a 256 "$1" 2>/dev/null | /usr/bin/awk '{print $1}'
 }
@@ -167,7 +266,7 @@ require_workbuddy_runtime() {
   WORKBUDDY_TEAM_ID="$(codesign_team_id "$WORKBUDDY_BUNDLE")"
   [ "$WORKBUDDY_TEAM_ID" = "$EXPECTED_WORKBUDDY_TEAM_ID" ] \
     || fail "Unexpected WorkBuddy signing team: ${WORKBUDDY_TEAM_ID:-missing}."
-  /usr/bin/codesign --verify --deep --strict "$WORKBUDDY_BUNDLE" >/dev/null 2>&1 \
+  workbuddy_signature_is_valid_or_repaired \
     || fail "WorkBuddy's code signature is invalid. Reinstall the official app before continuing."
   [ -f "$WORKBUDDY_SKIN_CSS_PATH" ] || fail "WorkBuddy skin CSS is missing: $WORKBUDDY_SKIN_CSS_PATH"
   [ -f "$WORKBUDDY_RENDERER_TEMPLATE_PATH" ] \

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { ToolError } from "./errors.mjs";
-import { resolveResourcePath } from "./desktop-layout.mjs";
+import { resolveResourcePath } from "./resource-path.mjs";
 
 export const RUNTIME_MANIFEST_FILE = "runtime-manifest.v1.json";
 export const RUNTIME_STATE_FILE = "active-runtime.v1.json";
@@ -65,6 +65,19 @@ async function pathExists(target) {
     if (error.code === "ENOENT") return false;
     throw error;
   }
+}
+
+async function ensureRealDirectory(target, label) {
+  await fs.mkdir(target, { recursive: true, mode: 0o700 });
+  const stat = await fs.lstat(target);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new ToolError(
+      "RUNTIME_PATH_UNSAFE",
+      `${label} must be a real directory and cannot be a symbolic link.`,
+      { path: target },
+    );
+  }
+  await fs.chmod(target, 0o700);
 }
 
 async function assertRegularUnsymLinkedFile(root, target, relativePath, errorCode = "RUNTIME_PACKAGE_INVALID") {
@@ -225,28 +238,36 @@ export class VersionedRuntimeInstaller {
   }
 
   async ensureRoots() {
-    await fs.mkdir(this.namespaceRoot, { recursive: true, mode: 0o700 });
-    await Promise.all([
-      fs.mkdir(this.versionsRoot, { recursive: true, mode: 0o700 }),
-      fs.mkdir(this.stagingRoot, { recursive: true, mode: 0o700 }),
-    ]);
+    await ensureRealDirectory(this.runtimeRoot, "Runtime root");
+    await ensureRealDirectory(this.namespaceRoot, "Runtime namespace root");
+    await ensureRealDirectory(this.versionsRoot, "Runtime versions root");
+    await ensureRealDirectory(this.stagingRoot, "Runtime staging root");
   }
 
   async withLock(action) {
     await this.ensureRoots();
     const deadline = Date.now() + this.lockTimeoutMs;
+    const token = crypto.randomUUID();
     while (true) {
       try {
         await fs.mkdir(this.lockPath);
         await fs.writeFile(path.join(this.lockPath, "owner.json"), JSON.stringify({
           pid: process.pid,
+          token,
           createdAt: this.now().toISOString(),
         }), { mode: 0o600 });
         break;
       } catch (error) {
         if (error.code !== "EEXIST") throw error;
         if (await this.recoverStaleLock()) {
-          await fs.rm(this.lockPath, { recursive: true, force: true });
+          const quarantine = path.join(this.namespaceRoot, `.install.lock.stale-${crypto.randomUUID()}`);
+          try {
+            await fs.rename(this.lockPath, quarantine);
+          } catch (renameError) {
+            if (renameError.code === "ENOENT") continue;
+            throw renameError;
+          }
+          await fs.rm(quarantine, { recursive: true, force: true });
           continue;
         }
         if (Date.now() >= deadline) {
@@ -258,11 +279,31 @@ export class VersionedRuntimeInstaller {
     try {
       return await action();
     } finally {
-      await fs.rm(this.lockPath, { recursive: true, force: true });
+      let owner;
+      try {
+        owner = JSON.parse(await fs.readFile(path.join(this.lockPath, "owner.json"), "utf8"));
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      if (owner?.pid === process.pid && owner?.token === token) {
+        await fs.rm(this.lockPath, { recursive: true, force: true });
+      }
     }
   }
 
   async recoverStaleLock() {
+    const lockStat = await fs.lstat(this.lockPath).catch((error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!lockStat) return true;
+    if (!lockStat.isDirectory() || lockStat.isSymbolicLink()) {
+      throw new ToolError(
+        "RUNTIME_PATH_UNSAFE",
+        "Runtime installation lock must be a real directory and cannot be a symbolic link.",
+        { path: this.lockPath },
+      );
+    }
     let owner;
     try {
       owner = JSON.parse(await fs.readFile(path.join(this.lockPath, "owner.json"), "utf8"));

@@ -5,13 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createDesktopBackendConfig } from "../desktop/shell.mjs";
 import {
   createDreamSkinCliContext,
   DREAMSKIN_PLUGIN_IDS,
   resolveDreamSkinCliPaths,
 } from "../src/core/cli-context.mjs";
-import { DesktopPathLayout } from "../src/core/desktop-layout.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TRAE = "dreamskin.trae";
@@ -21,7 +19,7 @@ const TARGETS = Object.freeze([
   [WORKBUDDY, "workbuddy"],
 ]);
 
-test("CLI paths use the canonical desktop user-data layout for both targets", () => {
+test("CLI paths use a CLI-owned data root and isolate both targets", () => {
   const homeDir = path.join(path.parse(PROJECT_ROOT).root, "Users", "dreamskin-test");
   const resourceRoot = path.join(homeDir, "DreamSkin Resources");
   const paths = resolveDreamSkinCliPaths({
@@ -29,28 +27,11 @@ test("CLI paths use the canonical desktop user-data layout for both targets", ()
     homeDir,
     environment: { DREAMSKIN_RESOURCE_ROOT: resourceRoot },
   });
-  const userDataRoot = path.join(
-    homeDir,
-    "Library",
-    "Application Support",
-    "DreamSkin Studio",
-  );
-  const layout = new DesktopPathLayout({
-    appPath: resourceRoot,
-    developmentResourcesPath: resourceRoot,
-    userDataPath: userDataRoot,
-  });
-
-  assert.equal(paths.userDataRoot, userDataRoot);
-  assert.equal(paths.dataRoot, layout.dataRoot);
+  assert.equal(paths.userDataRoot, path.join(homeDir, "Library", "Application Support", "DreamSkin"));
+  assert.equal(paths.dataRoot, path.join(paths.userDataRoot, "data"));
   assert.deepEqual(Object.keys(paths.targets), [...DREAMSKIN_PLUGIN_IDS]);
 
   for (const [pluginId, pluginResourceDirectory] of TARGETS) {
-    const desktop = createDesktopBackendConfig({
-      layout,
-      pluginId,
-      pluginResourceDirectory,
-    });
     const cli = paths.targets[pluginId];
     assert.deepEqual(
       {
@@ -64,14 +45,14 @@ test("CLI paths use the canonical desktop user-data layout for both targets", ()
         manifestPath: cli.manifestPath,
       },
       {
-        pluginRoot: desktop.paths.pluginRoot,
-        pluginManifestPath: desktop.paths.pluginManifestPath,
-        catalogThemesRoot: desktop.paths.catalogThemesRoot,
-        registryPath: desktop.paths.registryPath,
-        themesRoot: desktop.paths.userThemesRoot,
-        dataRoot: desktop.paths.stateRoot,
-        backupsRoot: desktop.paths.backupsRoot,
-        manifestPath: desktop.paths.manifestPath,
+        pluginRoot: path.join(resourceRoot, "plugins", pluginResourceDirectory),
+        pluginManifestPath: path.join(resourceRoot, "plugins", pluginResourceDirectory, "plugin.json"),
+        catalogThemesRoot: path.join(resourceRoot, "plugins", pluginResourceDirectory, "catalog"),
+        registryPath: path.join(resourceRoot, "plugins", pluginResourceDirectory, "resources", "components.v1.json"),
+        themesRoot: path.join(paths.dataRoot, "themes", pluginId),
+        dataRoot: path.join(paths.dataRoot, "state", pluginId),
+        backupsRoot: path.join(paths.dataRoot, "backups", pluginId),
+        manifestPath: path.join(paths.dataRoot, "state", pluginId, "library.json"),
       },
       pluginId,
     );
@@ -80,6 +61,23 @@ test("CLI paths use the canonical desktop user-data layout for both targets", ()
   assert.notEqual(paths.targets[TRAE].themesRoot, paths.targets[WORKBUDDY].themesRoot);
   assert.notEqual(paths.targets[TRAE].dataRoot, paths.targets[WORKBUDDY].dataRoot);
   assert.notEqual(paths.targets[TRAE].backupsRoot, paths.targets[WORKBUDDY].backupsRoot);
+});
+
+test("CLI path resolution preserves an existing legacy theme library", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dreamskin-cli-legacy-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const legacyRoot = path.join(root, "Library", "Application Support", "DreamSkin Studio");
+  const legacyDataRoot = path.join(legacyRoot, "dreamskin");
+  await fs.mkdir(legacyDataRoot, { recursive: true });
+
+  const paths = resolveDreamSkinCliPaths({
+    platform: "darwin",
+    homeDir: root,
+    environment: {},
+  });
+  assert.equal(paths.userDataRoot, legacyRoot);
+  assert.equal(paths.dataRoot, legacyDataRoot);
+  assert.equal(paths.migratedFromStudio, true);
 });
 
 test("path resolution uses only the injected environment and honors explicit roots", () => {
@@ -93,8 +91,8 @@ test("path resolution uses only the injected environment and honors explicit roo
       DREAMSKIN_RESOURCE_ROOT: path.join(fixtureRoot, "resources"),
     },
   });
-  assert.equal(implicit.userDataRoot, path.join(xdgRoot, "dreamskin-studio"));
-  assert.equal(implicit.dataRoot, path.join(xdgRoot, "dreamskin-studio", "dreamskin"));
+  assert.equal(implicit.userDataRoot, path.join(xdgRoot, "dreamskin"));
+  assert.equal(implicit.dataRoot, path.join(xdgRoot, "dreamskin", "data"));
 
   const explicit = resolveDreamSkinCliPaths({
     platform: "darwin",
@@ -231,20 +229,23 @@ test("CLI context keeps equal theme ids isolated between Trae and WorkBuddy", as
   );
 });
 
-test("packaged CLI context validates resources before activating plugins", async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dreamskin-cli-packaged-"));
+test("target-scoped CLI context installs and activates only the selected runtime", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dreamskin-cli-target-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const resourceRoot = path.join(root, "resources", "dreamskin");
-  await fs.mkdir(resourceRoot, { recursive: true });
+  const cli = await createDreamSkinCliContext({
+    pluginIds: [TRAE],
+    environment: {
+      DREAMSKIN_RESOURCE_ROOT: PROJECT_ROOT,
+      DREAMSKIN_USER_DATA_ROOT: path.join(root, "user data"),
+    },
+  });
+  t.after(() => cli.close());
 
+  assert.deepEqual(cli.targets().map(({ pluginId }) => pluginId), [TRAE]);
+  assert.deepEqual(Object.keys(cli.runtimeRoots), [TRAE]);
+  await fs.access(cli.runtimeRoots[TRAE]);
   await assert.rejects(
-    createDreamSkinCliContext({
-      environment: {
-        DREAMSKIN_PACKAGED: "1",
-        DREAMSKIN_RESOURCE_ROOT: resourceRoot,
-        DREAMSKIN_USER_DATA_ROOT: path.join(root, "user data"),
-      },
-    }),
-    (error) => error.code === "RESOURCE_MANIFEST_MISSING",
+    fs.access(path.join(cli.paths.dataRoot, "runtime", WORKBUDDY)),
+    (error) => error.code === "ENOENT",
   );
 });

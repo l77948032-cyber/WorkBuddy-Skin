@@ -30,8 +30,6 @@ async function fixture(t) {
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await writeJson(root, "package.json", { version: "0.1.0" });
   await writeJson(root, "package-lock.json", { version: "0.1.0", packages: { "": { version: "0.1.0" } } });
-  await writeJson(root, "studio/package.json", { version: "0.1.0" });
-  await writeJson(root, "studio/package-lock.json", { version: "0.1.0", packages: { "": { version: "0.1.0" } } });
   await writeJson(root, "plugins/trae/plugin.json", { version: "0.1.0" });
   await writeJson(root, "plugins/workbuddy/plugin.json", { version: "0.1.0" });
   for (const [file, source] of Object.entries(SOURCE_FIXTURES)) {
@@ -53,7 +51,7 @@ test("product version command updates every shipping version declaration", async
   const result = await setProductVersion("0.3.0", { projectRoot: root });
   assert.equal(result.ok, true);
   assert.equal(result.version, "0.3.0");
-  assert.equal(result.records.length, 14);
+  assert.equal(result.records.length, 11);
   assert.ok(result.records.every((record) => record.version === "0.3.0"));
 });
 
