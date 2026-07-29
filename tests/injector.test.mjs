@@ -19,6 +19,7 @@ import {
   runOneShot,
   validatedDebuggerUrl,
   verifyRemovedSession,
+  waitForPaint,
 } from "../scripts/injector.mjs";
 
 const PORT = 9342;
@@ -378,6 +379,20 @@ test("screenshot capture validates and writes PNG data", async (t) => {
   }, outputPath);
   assert.equal(result.bytes, png.length);
   assert.deepEqual(await fs.readFile(outputPath), png);
+});
+
+test("paint wait falls back when a background renderer pauses animation frames", async () => {
+  let expression = "";
+  const startedAt = Date.now();
+  await waitForPaint({
+    evaluate: async (source) => {
+      expression = source;
+      return Function("requestAnimationFrame", `return (${source});`)(() => {});
+    },
+  });
+  assert.match(expression, /Promise\.race/);
+  assert.match(expression, /setTimeout\(resolve, 500\)/);
+  assert.ok(Date.now() - startedAt < 1500);
 });
 
 class FakeStyle {

@@ -24,7 +24,7 @@ const VISUAL_ATTRIBUTE_NAMES = Object.freeze([
   "data-trae-skin-ornament",
 ]);
 
-export const SKIN_VERSION = "0.5.4";
+export const SKIN_VERSION = "0.5.5";
 export const DEFAULT_PORT = 9342;
 
 const DEFAULT_THEME_DIR = path.join(root, "themes", "neon-portal");
@@ -742,10 +742,13 @@ export async function captureScreenshot(session, outputPath) {
   return { path: outputPath, bytes: data.length };
 }
 
-async function waitForPaint(session) {
-  await session.evaluate(`new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  })`);
+export async function waitForPaint(session) {
+  await session.evaluate(`Promise.race([
+    new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }),
+    new Promise((resolve) => setTimeout(resolve, 500)),
+  ])`);
   await sleep(80);
 }
 

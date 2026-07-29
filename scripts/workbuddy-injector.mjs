@@ -17,7 +17,7 @@ const filename = fileURLToPath(import.meta.url);
 const scriptRoot = path.dirname(filename);
 const projectRoot = path.resolve(scriptRoot, "..");
 
-export const WORKBUDDY_SKIN_VERSION = "0.5.4";
+export const WORKBUDDY_SKIN_VERSION = "0.5.5";
 export const WORKBUDDY_DEFAULT_PORT = 9432;
 export const WORKBUDDY_DEFAULT_THEME_DIR = path.join(
   projectRoot,
