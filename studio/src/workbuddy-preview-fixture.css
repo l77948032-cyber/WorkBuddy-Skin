@@ -256,6 +256,285 @@ html[data-workbuddy-skin-ornament="facets"] .wb-main::before {
 .wb-progress-bars i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--dreamskin-accent), var(--dreamskin-secondary)); }
 .wb-progress-bars small { color: var(--dreamskin-muted); font-size: 8px; }
 
+/* Native WorkBuddy 5.2 home: welcome, scene selector and one compact composer. */
+html.workbuddy-dream-skin[data-dreamskin-preview="true"][data-workbuddy-skin-route="home"] .wb-main::before,
+html.workbuddy-dream-skin[data-dreamskin-preview="true"][data-workbuddy-skin-route="home"] .wb-quick-card strong::after {
+  display: none;
+}
+
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-titlebar {
+  display: flex;
+  justify-content: flex-end;
+  height: 52px;
+  padding: 0 18px;
+  border-bottom-color: color-mix(in srgb, var(--dreamskin-line) 58%, transparent);
+}
+.wb-home-drag-region { flex: 1; align-self: stretch; }
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px 0 6px;
+  border: 1px solid color-mix(in srgb, var(--dreamskin-line) 78%, transparent);
+  border-radius: 7px;
+  color: var(--dreamskin-text);
+  background: color-mix(in srgb, var(--dreamskin-panel) 54%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(calc(var(--dreamskin-blur) * .45));
+  font-size: 8px;
+  font-weight: 600;
+}
+.wb-home-reward-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--dreamskin-on-accent);
+  background: var(--dreamskin-accent);
+}
+.wb-home-reward .wb-icon { width: 11px; height: 11px; }
+.wb-home-reward > .wb-icon:last-child {
+  width: 9px;
+  color: var(--dreamskin-muted);
+  transform: rotate(-90deg);
+}
+
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 668px;
+  padding: 104px 40px 34px;
+  overflow: hidden;
+}
+.wb-home-welcome {
+  display: grid;
+  justify-items: start;
+  width: min(720px, 100%);
+}
+.wb-home-header { text-align: left; }
+.wb-home-header h1 {
+  margin: 0;
+  font-size: 35px;
+  font-weight: 570;
+  line-height: 1.08;
+  text-shadow: 0 2px 18px color-mix(in srgb, var(--dreamskin-background) 84%, transparent);
+}
+.wb-home-header p {
+  margin: 8px 0 0;
+  color: color-mix(in srgb, var(--dreamskin-text) 72%, var(--dreamskin-muted));
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.12;
+  text-shadow: 0 2px 18px color-mix(in srgb, var(--dreamskin-background) 86%, transparent);
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-mode-pill {
+  align-self: center;
+  width: 344px;
+  height: 34px;
+  margin-right: 376px;
+  margin-top: 24px;
+  padding: 3px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--dreamskin-line) 84%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dreamskin-panel) 46%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(calc(var(--dreamskin-blur) * .45));
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-mode-pill button {
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  font-size: 9px;
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-mode-pill button.is-active {
+  color: var(--dreamskin-text);
+  background: color-mix(in srgb, var(--dreamskin-panel) 88%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--dreamskin-terminal) 12%, transparent);
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-mode-pill .wb-icon,
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-icon .wb-icon,
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-composer .wb-icon {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-grid {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  margin: 0;
+  gap: 8px;
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-card {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  gap: 7px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--dreamskin-line) 84%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dreamskin-panel) 52%, transparent);
+  background-image: none;
+  box-shadow: none;
+  backdrop-filter: blur(calc(var(--dreamskin-blur) * .48));
+  transform: none;
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-card::before,
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-card::after {
+  display: none;
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-page .wb-quick-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-width: 1px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.wb-home-page .wb-quick-icon .wb-icon { width: 12px; height: 12px; }
+.wb-home-page .wb-quick-card strong {
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-composer {
+  position: relative;
+  display: grid;
+  grid-template-rows: 32px 142px;
+  width: min(720px, 100%);
+  height: 184px;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.wb-home-composer__chips {
+  min-height: 0;
+  height: 32px;
+}
+.wb-home-composer__chips,
+.wb-home-composer__chips > .quick-actions-container,
+.wb-home-composer__chips .quick-actions {
+  width: 100%;
+}
+.wb-home-composer__input-slot {
+  position: relative;
+  min-height: 0;
+  height: 142px;
+}
+.wb-home-input-surface {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 30px;
+  width: 100%;
+  height: 142px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--dreamskin-accent) 25%, var(--dreamskin-line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dreamskin-panel) var(--dreamskin-composer-mix), transparent);
+  box-shadow: 0 11px 28px color-mix(in srgb, var(--dreamskin-terminal) 13%, transparent);
+  backdrop-filter: blur(calc(var(--dreamskin-blur) * .7)) saturate(var(--dreamskin-saturation, 1));
+}
+.wb-home-input-main {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 38px;
+  min-height: 0;
+}
+.wb-home-input-main > .wb-composer-editor {
+  min-height: 0;
+  padding: 16px 17px 10px;
+  color: var(--dreamskin-text);
+  font-size: 10px;
+}
+.wb-home-input-main > .wb-composer-editor span {
+  margin-left: 4px;
+  color: var(--dreamskin-muted);
+}
+.wb-home-toolbar,
+.wb-home-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+.wb-home-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.wb-home-toolbar button,
+.wb-home-context button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 25px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--dreamskin-muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: 7px;
+}
+.wb-home-toolbar button[aria-label="添加附件"] { width: 25px; padding: 0; color: var(--dreamskin-text); }
+.wb-home-toolbar button .wb-icon,
+.wb-home-context button .wb-icon { width: 11px; height: 11px; }
+.wb-home-app-mark {
+  width: 14px;
+  height: 11px;
+  clip-path: polygon(0 0, 54% 12%, 100% 0, 78% 100%, 24% 88%);
+  background: linear-gradient(135deg, var(--dreamskin-info), var(--dreamskin-success));
+}
+html.workbuddy-dream-skin[data-dreamskin-preview="true"] .wb-home-toolbar .wb-send {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--dreamskin-on-accent);
+  background: var(--dreamskin-accent);
+}
+.wb-home-context {
+  height: 30px;
+  justify-content: flex-start;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--dreamskin-line) 68%, transparent);
+}
+.wb-home-input-surface > .wb-input-footer {
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  background: transparent;
+  box-shadow: none;
+}
+.wb-home-context button + button {
+  margin-left: 2px;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--dreamskin-line) 58%, transparent);
+  border-radius: 0;
+}
 /* Native WorkBuddy 5.2 local assistant workspace */
 .wb-assistant-titlebar { justify-content: flex-start; gap: 8px; }
 .wb-assistant-title { display: flex; align-items: center; gap: 7px; min-width: 0; }

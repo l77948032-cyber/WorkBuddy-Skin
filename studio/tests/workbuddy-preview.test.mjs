@@ -82,6 +82,65 @@ test("WorkBuddy preview exposes every product scene", async () => {
   assert.match(preview, /设计创意/);
 });
 
+test("WorkBuddy home preview mirrors the native welcome workspace instead of an invented dashboard", async () => {
+  const preview = await source("WorkBuddyPreview.tsx");
+  const homeStart = preview.indexOf("function homeModePill()");
+  const homeSceneStart = preview.indexOf("function homeScene()");
+  const homeEnd = preview.indexOf("function assistantScene()");
+  assert.ok(
+    homeStart >= 0 && homeSceneStart > homeStart && homeEnd > homeSceneStart,
+    "the native home preview helpers must stay together",
+  );
+  const home = preview.slice(homeStart, homeEnd);
+  const renderedHome = preview.slice(homeSceneStart, homeEnd);
+
+  for (const inventedDashboardCopy of [
+    "TODAY",
+    "今日安排",
+    "本周进度",
+    "下一场会议将在",
+    "产品周会",
+    "开始今日任务",
+  ]) {
+    assert.doesNotMatch(preview, new RegExp(inventedDashboardCopy), `${inventedDashboardCopy} must not appear in the WorkBuddy preview`);
+  }
+  for (const inventedDashboardClass of [
+    "wb-dashboard-grid",
+    "wb-agenda",
+    "wb-progress",
+    "wb-ring",
+    "wb-hero-note",
+  ]) {
+    assert.doesNotMatch(home, new RegExp(inventedDashboardClass), `${inventedDashboardClass} must not shape the native home scene`);
+  }
+
+  assert.match(home, /WorkBuddy/);
+  assert.match(home, /你的职场超能力/);
+  assert.match(home, /wb-home-header__title/);
+  assert.match(home, /wb-home-header__subtitle/);
+  assert.match(home, /role="tablist"/);
+  assert.match(home, /aria-label="首页场景"/);
+  for (const scene of ["日常办公", "代码开发", "设计创意"]) {
+    assert.match(home, new RegExp(scene), `${scene} must remain available from the home scene tabs`);
+  }
+  for (const shortcut of ["文档处理", "金融服务", "数据分析及可视化", "更多"]) {
+    assert.match(home, new RegExp(shortcut), `${shortcut} must be represented as a native quick entry`);
+  }
+
+  assert.match(home, /tagged\("home\.quickAction"/);
+  assert.match(home, /tagged\("composer\.surface"/);
+  assert.match(home, /tagged\("composer\.tool"/);
+  assert.match(home, /wb-home-composer__input-slot/);
+  assert.match(home, /data-slate-editor="true"/);
+  assert.match(home, /选择工作空间/);
+  assert.match(home, /默认权限/);
+  assert.match(home, /wb-home-composer__chips/);
+  assert.match(home, /quick-actions-container/);
+  assert.match(home, /wb-home-composer__input-slot[\s\S]*wb-input-footer/);
+  assert.match(renderedHome, /homeModePill\(\)/);
+  assert.match(renderedHome, /homeComposer\(\)|tagged\("composer\.surface"/);
+});
+
 test("WorkBuddy preview covers the complete semantic component registry", async () => {
   const [app, preview, registry] = await Promise.all([
     source("App.tsx"),

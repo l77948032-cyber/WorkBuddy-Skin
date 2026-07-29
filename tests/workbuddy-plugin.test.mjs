@@ -342,6 +342,44 @@ test("WorkBuddy structural CSS is version guarded and mirrored for ThemeLoader c
   assert.ok(hostSelectors.every((selector) => selector.startsWith("html.workbuddy-dream-skin")));
 });
 
+test("WorkBuddy native home contracts are detected and compatibility scoped", async () => {
+  const [canonical, renderer] = await Promise.all([
+    fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"), "utf8"),
+    fs.readFile(path.join(ROOT, "assets", "workbuddy-renderer-inject.js"), "utf8"),
+  ]);
+
+  assert.match(renderer, /\["home",\s*"\.wb-home-page,\s*\.main-content--welcome"\]/);
+  assert.match(renderer, /query\("\.wb-home-composer__input-slot"\)/);
+
+  const nativeHomeSelectors = [
+    ".wb-home-page",
+    ".wb-home-header__title",
+    ".wb-home-header__subtitle",
+    ".wb-scene-tabs",
+    ".wb-scene-tabs__pill",
+    ".quick-actions__item",
+    ".quick-actions__item-icon",
+    ".wb-home-composer__input-slot",
+  ];
+  const cssSelectors = [...canonical.matchAll(/([^{}]+)\{[^{}]*\}/g)]
+    .flatMap((match) => topLevelSelectors(match[1]));
+  for (const nativeSelector of nativeHomeSelectors) {
+    const matching = cssSelectors.filter((selector) => selector.includes(nativeSelector));
+    assert.ok(matching.length > 0, `${nativeSelector} must have a native WorkBuddy home rule`);
+    assert.ok(
+      matching.every((selector) =>
+        selector.startsWith('html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"]')),
+      `${nativeSelector} rules must not leak outside the WorkBuddy 5.2 profile`,
+    );
+  }
+
+  const homeCanvasCss = ruleBodiesFor(canonical, ".wb-home-page");
+  assert.match(homeCanvasCss, /background:\s*transparent/);
+  const composerCss = ruleBodiesFor(canonical, ".wb-home-composer__input-slot");
+  assert.match(composerCss, /background:\s*transparent/);
+  assert.match(composerCss, /color:\s*var\(--ds-text\)/);
+});
+
 test("WorkBuddy consumes theme opacity without covering the conversation artwork", async () => {
   const [canonical, compatibility, renderer] = await Promise.all([
     fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"), "utf8"),

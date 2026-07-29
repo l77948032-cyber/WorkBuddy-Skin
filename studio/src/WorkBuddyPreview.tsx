@@ -140,7 +140,7 @@ function sidebar(active: string) {
   ].map(([id, iconName, label]) => `<button class="conversation-list-tab-button ${active === id ? "is-active active" : ""}" aria-current="${active === id ? "page" : "false"}">${icon(iconName)}<span>${label}</span></button>`).join("");
   return `
     <aside class="wb-sidebar conversation-sidebar" data-view-id="sidebar">
-      <div class="wb-brand conversation-list-logo-row"><span>${icon("spark")}</span><strong class="conversation-list-logo logo-workbuddy-title">WorkBuddy</strong><small class="conversation-list-version-badge">v5.2.6</small></div>
+      <div class="wb-brand conversation-list-logo-row"><strong class="conversation-list-logo logo-workbuddy-title">WorkBuddy</strong><small class="conversation-list-version-badge">v5.2.6</small></div>
       ${tagged("sidebar.navigation", `<nav class="conversation-list-tabs">${nav}</nav>`, "wb-nav")}
       <div class="wb-side-label conversation-section-label-text"><span>空间 (2)</span><button class="workspace-more-button" aria-label="新建项目">${icon("plus")}</button></div>
       ${tagged("sidebar.project", `
@@ -159,27 +159,58 @@ function shell(active: string, title: string, subtitle: string, content: string)
 }
 
 function homeModePill() {
-  return `<div class="wb-mode-pill" role="tablist" aria-label="首页场景"><button class="is-active">${icon("grid")}日常办公</button><button>${icon("code")}代码开发</button><button>${icon("design")}设计创意</button></div>`;
+  return `<div class="wb-mode-pill wb-scene-tabs" role="tablist" aria-label="首页场景"><button class="is-active" role="tab" aria-selected="true">${icon("grid")}日常办公</button><button role="tab" aria-selected="false">${icon("code")}代码开发</button><button role="tab" aria-selected="false">${icon("design")}设计创意</button></div>`;
 }
 
-function homeHero() {
+function homeWelcome() {
   return tagged("home.hero", `
-    <div class="wb-hero-art"></div><div class="wb-hero-scrim"></div>
-    <div class="wb-hero-copy"><span>TODAY</span><h1>早上好，今天一起推进重要工作</h1><p>你有 3 个进行中的任务，下一场会议将在 14:30 开始。</p><button>${icon("spark")}开始今日任务</button></div>
-    <div class="wb-hero-note"><span>14:30</span><strong>产品周会</strong><small>会议纪要将自动整理</small></div>
-  `, "wb-home-hero");
+    <header class="wb-home-header"><h1 class="wb-home-header__title">WorkBuddy</h1><p class="wb-home-header__subtitle">你的职场超能力</p></header>
+  `, "wb-home-welcome");
 }
 
-function quickAction(iconName: string, title: string, detail: string, accent: string) {
-  return tagged("home.quickAction", `<span class="wb-quick-icon ${accent}">${icon(iconName)}</span><div><strong>${title}</strong><small>${detail}</small></div><button aria-label="打开">${icon("chevron")}</button>`, "wb-quick-card quick-actions__item");
+function quickAction(iconName: string, title: string, accent: string) {
+  return tagged("home.quickAction", `<span class="wb-quick-icon quick-actions__item-icon ${accent}">${icon(iconName)}</span><strong>${title}</strong>`, "wb-quick-card quick-actions__item");
+}
+
+function homeComposer() {
+  return tagged("composer.surface", `
+      ${tagged("composer.tool", `
+        <div class="quick-actions-container">
+          <div class="quick-actions"><div class="wb-quick-grid quick-actions__list" aria-label="快捷入口">${quickAction("file", "文档处理", "is-red")}${quickAction("folder", "金融服务", "is-teal")}${quickAction("auto", "数据分析及可视化", "is-blue")}${quickAction("grid", "更多", "is-gold")}</div></div>
+        </div>
+      `, "wb-home-composer__chips")}
+      <div class="wb-home-composer__input-slot">
+        <section class="wb-home-input-surface" data-workbuddy-skin-runtime-role="composer.surface">
+          <div class="wb-home-input-main">
+            <div class="wb-composer-editor" data-slate-editor="true">今天帮你做些什么？ <span>@ 引用对话文件，/ 调用技能与指令</span></div>
+            <div class="wb-home-toolbar">
+              <div><button aria-label="添加附件">${icon("plus")}</button><span class="wb-home-app-mark" aria-hidden="true"></span></div>
+              <div><button>Auto ${icon("chevron")}</button><button class="voice-mic-trigger" aria-label="语音输入">${icon("mic")}</button><button class="wb-send wb-button--primary" aria-label="发送" data-dreamskin-component="action.primary" data-workbuddy-skin-component="action.primary" data-workbuddy-skin-role="primary-action">${icon("send")}</button></div>
+            </div>
+          </div>
+          <footer class="wb-input-footer">
+            <div class="wb-home-context">
+              <button>${icon("folder")}选择工作空间 ${icon("chevron")}</button>
+              <button>${icon("check")}默认权限 ${icon("chevron")}</button>
+            </div>
+          </footer>
+        </section>
+      </div>
+    `, "wb-home-composer");
+}
+
+function homeTitlebar() {
+  return tagged("shell.titlebar", `
+    <span class="wb-home-drag-region" aria-hidden="true"></span>
+    ${tagged("status.badge", `<span class="wb-home-reward-icon">${icon("spark")}</span><span>做任务赢积分好礼</span>${icon("chevron")}`, "wb-home-reward status-badge")}
+  `, "wb-titlebar workbuddy-topbar wb-home-titlebar");
 }
 
 function homeScene() {
-  const content = `<div class="wb-page wb-home-page">${homeModePill()}${homeHero()}
-    <section class="wb-quick-grid">${quickAction("file", "整理周报", "汇总本周任务与文档", "is-red")}${quickAction("chat", "会议纪要", "从录音提炼结论与待办", "is-teal")}${quickAction("book", "资料研究", "搜索并生成可信摘要", "is-blue")}${quickAction("auto", "流程自动化", "将重复工作交给 WorkBuddy", "is-gold")}</section>
-    <div class="wb-dashboard-grid"><section class="wb-agenda"><header><div><strong>今日安排</strong><span>7 月 20 日 · 周一</span></div><button>查看日历</button></header><article><time>10:00</time><i class="is-teal"></i><div><strong>设计评审</strong><span>品牌内容 · 45 分钟</span></div><span class="wb-chip">线上</span></article><article><time>14:30</time><i class="is-red"></i><div><strong>产品周会</strong><span>产品发布计划 · 60 分钟</span></div><span class="wb-chip">会议室 A</span></article></section><section class="wb-progress"><header><strong>本周进度</strong><span>68%</span></header><div class="wb-ring"><b>12</b><span>已完成</span></div><div class="wb-progress-bars"><span><i style="width:82%"></i></span><small>目标 18 项 · 剩余 6 项</small></div></section></div>
+  const content = `<div class="wb-page wb-home-page">${homeWelcome()}${homeModePill()}
+    ${homeComposer()}
   </div>`;
-  return shell("home", "工作台", "首页", content);
+  return tagged("shell.workspace", `${sidebar("home")}<section class="wb-main teams-content-wrapper main-content wb-home-main" data-view-id="main-content">${homeTitlebar()}${content}</section>`, "wb-shell teams-container is-mac");
 }
 
 function assistantScene() {
@@ -305,7 +336,7 @@ function componentsScene() {
     cell("shell.titlebar", "窗口标题栏", `<div class="demo-titlebar"><b></b><label>${icon("search")}搜索</label><span class="wb-avatar">A</span></div>`),
     cell("sidebar.navigation", "侧栏导航", `<div class="demo-nav"><button>${icon("home")}</button><button class="is-active">${icon("chat")}</button><button disabled>${icon("folder")}</button></div>`),
     cell("sidebar.project", "项目列表", `<div class="demo-list"><span>默认项目</span><span class="is-selected">选中项目</span><span class="is-disabled">不可用</span></div>`),
-    cell("home.hero", "首页主视觉", `<div class="demo-hero"><span>TODAY</span><strong>今天一起完成重要工作</strong><button>开始任务</button></div>`, "is-wide"),
+    cell("home.hero", "首页主视觉", `<div class="demo-hero"><span>WORKBUDDY</span><strong>今天一起完成重要工作</strong><button>开始任务</button></div>`, "is-wide"),
     cell("home.quickAction", "快捷操作", `<div class="demo-quick"><span>${icon("spark")}</span><div><strong>整理周报</strong><small>汇总任务与文档</small></div>${icon("chevron")}</div>`),
     cell("chat.timeline", "对话时间线", `<div class="demo-timeline"><i></i><span></span><span></span><span></span></div>`),
     cell("chat.message.user", "用户消息", `<div class="demo-user-message">把资料整理成发布清单。</div>`),
@@ -350,6 +381,19 @@ const sceneTitles: Record<WorkBuddyScene, string> = {
   "wb-components": "组件与状态",
 };
 
+const sceneRoutes: Record<WorkBuddyScene, string> = {
+  "wb-home": "home",
+  "wb-assistant": "assistant",
+  "wb-chat": "chat",
+  "wb-result": "chat",
+  "wb-market": "market",
+  "wb-automation": "automation",
+  "wb-project": "project",
+  "wb-settings": "settings",
+  "wb-overlays": "workspace",
+  "wb-components": "workspace",
+};
+
 function sceneMarkup(scene: WorkBuddyScene) {
   if (scene === "wb-home") return homeScene();
   if (scene === "wb-assistant") return assistantScene();
@@ -365,7 +409,7 @@ function sceneMarkup(scene: WorkBuddyScene) {
 
 function previewDocument(scene: WorkBuddyScene, theme: StudioTheme, appearanceMode: AppearanceMode, interactive: boolean) {
   const visualAttributes = runtimeVisualAttributes(theme);
-  const source = `<!doctype html><html class="workbuddy-dream-skin" data-dreamskin-preview="true" data-dreamskin-target="workbuddy" data-dreamskin-theme="${escapeHtml(theme.id)}" data-dreamskin-scene="${scene}" data-dreamskin-shell="${appearanceMode}" data-workbuddy-skin-compat="5.2" data-workbuddy-skin-treatment="${escapeHtml(theme.appearance.treatment)}" ${visualAttributes} style="${escapeHtml(variables(theme, appearanceMode))}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: blob:; script-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><meta name="color-scheme" content="light dark"><style>${canonicalWorkBuddyCss.replaceAll("</style", "<\\/style")}</style><style>${workBuddyCss.replaceAll("</style", "<\\/style")}</style>${interactive ? `<style>html[data-dreamskin-interactive=true] [data-dreamskin-component]{cursor:pointer}html[data-dreamskin-interactive=true] [data-dreamskin-component]:hover{outline:2px solid color-mix(in srgb,var(--dreamskin-accent) 72%,white);outline-offset:2px}html[data-dreamskin-interactive=true] [data-dreamskin-component]:focus-visible,html[data-dreamskin-interactive=true] [data-dreamskin-selected=true]{outline:3px solid var(--dreamskin-focus)!important;outline-offset:3px!important}</style>` : ""}</head><body class="workbuddy-dream-skin-body">${symbols}${sceneMarkup(scene)}</body></html>`;
+  const source = `<!doctype html><html class="workbuddy-dream-skin" data-dreamskin-preview="true" data-dreamskin-target="workbuddy" data-dreamskin-theme="${escapeHtml(theme.id)}" data-dreamskin-scene="${scene}" data-dreamskin-shell="${appearanceMode}" data-workbuddy-skin-theme="${escapeHtml(theme.id)}" data-workbuddy-skin-route="${sceneRoutes[scene]}" data-workbuddy-skin-compat="5.2" data-workbuddy-skin-treatment="${escapeHtml(theme.appearance.treatment)}" ${visualAttributes} style="${escapeHtml(variables(theme, appearanceMode))}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: blob:; script-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><meta name="color-scheme" content="light dark"><style>${canonicalWorkBuddyCss.replaceAll("</style", "<\\/style")}</style><style>${workBuddyCss.replaceAll("</style", "<\\/style")}</style>${interactive ? `<style>html[data-dreamskin-interactive=true] [data-dreamskin-component]{cursor:pointer}html[data-dreamskin-interactive=true] [data-dreamskin-component]:hover{outline:2px solid color-mix(in srgb,var(--dreamskin-accent) 72%,white);outline-offset:2px}html[data-dreamskin-interactive=true] [data-dreamskin-component]:focus-visible,html[data-dreamskin-interactive=true] [data-dreamskin-selected=true]{outline:3px solid var(--dreamskin-focus)!important;outline-offset:3px!important}</style>` : ""}</head><body class="workbuddy-dream-skin-body">${symbols}${sceneMarkup(scene)}</body></html>`;
   return source;
 }
 
