@@ -1,6 +1,6 @@
 .DS_Store
 node_modules/
-.trae-dream-skin/
+.workbuddy-skin/
 .runtime*/
 artifacts/
 *.tsbuildinfo

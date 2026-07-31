@@ -8,10 +8,17 @@ import { ThemeRepository } from "../src/core/theme-repository.mjs";
 import { MAX_ART_BYTES } from "../src/core/theme-model.mjs";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const IMAGE_PATH = path.join(ROOT, "themes", "violet-rift", "background.png");
+const IMAGE_PATH = path.join(
+  ROOT,
+  "plugins",
+  "workbuddy",
+  "catalog",
+  "orchid-night",
+  "background.png",
+);
 
 async function repositoryFixture(t, options = {}) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "trae-agent-tool-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-agent-tool-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   return new ThemeRepository({
     themesRoot: path.join(root, "themes"),
@@ -79,7 +86,7 @@ function fileSystemWithFaults({ rename, rm } = {}) {
 
 test("theme repository stages, commits, revisions, and idempotent rollback", async (t) => {
   const repository = await repositoryFixture(t);
-  const imagePath = path.join(ROOT, "themes", "violet-rift", "background.png");
+  const imagePath = IMAGE_PATH;
   const dryRun = await repository.write({
     id: "agent-fixture",
     imagePath,
@@ -245,7 +252,7 @@ test("theme repository rejects theme assets and directories that escape through 
     image: "background.png",
   }));
   const outsideImage = path.join(outside, "outside.png");
-  await fs.copyFile(path.join(ROOT, "themes", "paper-aurora", "background.png"), outsideImage);
+  await fs.copyFile(IMAGE_PATH, outsideImage);
   await fs.symlink(outsideImage, path.join(themeDir, "background.png"));
   await assert.rejects(
     () => repository.read("linked-assets"),

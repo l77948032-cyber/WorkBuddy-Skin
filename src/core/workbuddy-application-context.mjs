@@ -8,19 +8,19 @@ import {
 import { createApplicationContext, LegacyDreamSkinFacade } from "./application-context.mjs";
 import { ToolError } from "./errors.mjs";
 import {
-  DREAMSKIN_THEMES_ROOT,
   PROJECT_ROOT,
+  THEMES_ROOT,
   TOOL_DATA_ROOT,
 } from "./paths.mjs";
 import { resolvePluginResources } from "./plugin-api.mjs";
-import { TraeDreamSkinService } from "./service.mjs";
+import { WorkBuddySkinService } from "./service.mjs";
 import { ThemeRepository } from "./theme-repository.mjs";
 import { WorkBuddyPlatformRuntime } from "./workbuddy-platform.mjs";
 
 export const WORKBUDDY_PLUGIN_ID = "dreamskin.workbuddy";
 
 export async function createWorkBuddyTargetRegistration({
-  themesRoot = path.join(DREAMSKIN_THEMES_ROOT, WORKBUDDY_PLUGIN_ID),
+  themesRoot = THEMES_ROOT,
   dataRoot = path.join(TOOL_DATA_ROOT, "workbuddy"),
   backupsRoot = path.join(dataRoot, "backups"),
   projectRoot = PROJECT_ROOT,
@@ -72,7 +72,7 @@ export async function createWorkBuddyTargetRegistration({
     backupsRoot: path.join(dataRoot, "catalog-backups"),
     projectRoot: targetPluginRoot,
   });
-  const targetService = service || new TraeDreamSkinService({
+  const targetService = service || new WorkBuddySkinService({
     repository: targetRepository,
     runtime: targetRuntime,
     dataRoot,
@@ -81,7 +81,7 @@ export async function createWorkBuddyTargetRegistration({
     runtimeMappingPath: runtimeMappingPath || resources.runtimeMappingPath,
     schemaPath: schemaPath || resources.schemaPath,
     target: manifest.target,
-    product: "WorkBuddy-Dream-Skin",
+    product: "WorkBuddy Skin",
   });
   const plugin = await createWorkBuddyPlugin({
     service: targetService,

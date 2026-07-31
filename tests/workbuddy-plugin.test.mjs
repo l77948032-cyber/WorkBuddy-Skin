@@ -318,12 +318,11 @@ test("WorkBuddy plugin delegates theme and runtime actions to the injected targe
   );
 });
 
-test("WorkBuddy structural CSS is version guarded and mirrored for ThemeLoader compatibility", async () => {
-  const [canonical, compatibility] = await Promise.all([
-    fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"), "utf8"),
-    fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "trae-skin.css"), "utf8"),
-  ]);
-  assert.equal(compatibility, canonical);
+test("WorkBuddy structural CSS is version guarded", async () => {
+  const canonical = await fs.readFile(
+    path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"),
+    "utf8",
+  );
   assert.match(canonical, /html\.workbuddy-dream-skin/);
   assert.match(canonical, /data-workbuddy-skin-compat="5\.2"/);
   assert.match(canonical, /--wb-bg-primary:/);
@@ -378,12 +377,10 @@ test("WorkBuddy native home contracts are detected and compatibility scoped", as
 });
 
 test("WorkBuddy consumes theme opacity without covering the conversation artwork", async () => {
-  const [canonical, compatibility, renderer] = await Promise.all([
+  const [canonical, renderer] = await Promise.all([
     fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"), "utf8"),
-    fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "trae-skin.css"), "utf8"),
     fs.readFile(path.join(ROOT, "assets", "workbuddy-renderer-inject.js"), "utf8"),
   ]);
-  assert.equal(compatibility, canonical, "the compatibility asset must mirror canonical WorkBuddy CSS");
 
   const artworkLayerCss = ruleBodiesFor(canonical, ".teams-container::before");
   assert.match(artworkLayerCss, /background-image:\s*var\(--dreamskin-art\)/);
@@ -433,12 +430,10 @@ test("WorkBuddy consumes theme opacity without covering the conversation artwork
 });
 
 test("WorkBuddy runtime covers every first-party business module with scoped surfaces", async () => {
-  const [canonical, compatibility, renderer] = await Promise.all([
+  const [canonical, renderer] = await Promise.all([
     fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "workbuddy-skin.css"), "utf8"),
-    fs.readFile(path.join(WORKBUDDY_PLUGIN_ROOT, "assets", "trae-skin.css"), "utf8"),
     fs.readFile(path.join(ROOT, "assets", "workbuddy-renderer-inject.js"), "utf8"),
   ]);
-  assert.equal(compatibility, canonical);
 
   for (const [route, selector] of [
     ["project", ".main-content--projects"],

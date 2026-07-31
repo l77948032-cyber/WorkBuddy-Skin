@@ -22,7 +22,7 @@ async function fixture(t) {
 }
 
 async function createPackage(root, {
-  namespace = "dreamskin.trae",
+  namespace = "dreamskin.workbuddy",
   version = "1.0.0",
   files = {
     "bin/launch.sh": { contents: "#!/bin/sh\necho ready\n", mode: 0o755 },
@@ -54,7 +54,7 @@ test("runtime installer stages verified immutable versions and tracks active/pre
   let tick = 0;
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
     now: () => new Date(Date.UTC(2026, 6, 19, 10, 0, tick++)),
   });
   const one = await createPackage(paths.root, { version: "1.0.0" });
@@ -90,15 +90,9 @@ test("runtime installer stages verified immutable versions and tracks active/pre
   );
 });
 
-test("Trae and WorkBuddy runtimes upgrade immutable 0.4.0 installs to 0.4.1 idempotently", async (t) => {
+test("WorkBuddy runtimes upgrade immutable 0.4.0 installs to 0.4.1 idempotently", async (t) => {
   const paths = await fixture(t);
   const scenarios = [
-    {
-      namespace: "dreamskin.trae",
-      relativePath: "scripts/common-macos.sh",
-      oldContents: "#!/bin/sh\necho trae-0.4.0\n",
-      newContents: "#!/bin/sh\necho trae-0.4.1\n",
-    },
     {
       namespace: "dreamskin.workbuddy",
       relativePath: "scripts/status-workbuddy-skin-macos.sh",
@@ -161,7 +155,7 @@ test("runtime package hash failure leaves the active install and version directo
   const paths = await fixture(t);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   const stable = await createPackage(paths.root, { version: "2.0.0" });
   await installer.install({ sourceRoot: stable.sourceRoot });
@@ -182,7 +176,7 @@ test("same runtime package is idempotent while an altered immutable version is r
   const paths = await fixture(t);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   const runtimePackage = await createPackage(paths.root, { version: "3.0.0-beta.1" });
   const first = await installer.install({ sourceRoot: runtimePackage.sourceRoot, activate: false });
@@ -210,7 +204,7 @@ test("runtime installer rejects foreign namespaces, traversal, and unavailable r
   const paths = await fixture(t);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   const foreign = await createPackage(paths.root, { namespace: "dreamskin.other", version: "1.0.0" });
   await assert.rejects(
@@ -222,7 +216,7 @@ test("runtime installer rejects foreign namespaces, traversal, and unavailable r
   await fs.mkdir(sourceRoot);
   await fs.writeFile(path.join(sourceRoot, RUNTIME_MANIFEST_FILE), JSON.stringify({
     schemaVersion: 1,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
     version: "1.0.0",
     files: [{ path: "../escape", sha256: "0".repeat(64), bytes: 0 }],
   }));
@@ -242,7 +236,7 @@ test("runtime installer rejects symlinked package files", {
   const paths = await fixture(t);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   const sourceRoot = path.join(paths.root, "linked-package");
   const outside = path.join(paths.root, "outside.sh");
@@ -252,7 +246,7 @@ test("runtime installer rejects symlinked package files", {
   await fs.symlink(outside, path.join(sourceRoot, "bin", "launch.sh"));
   await fs.writeFile(path.join(sourceRoot, RUNTIME_MANIFEST_FILE), JSON.stringify({
     schemaVersion: 1,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
     version: "1.0.0",
     files: [{ path: "bin/launch.sh", sha256: sha256(buffer), bytes: buffer.length, mode: 0o755 }],
   }));
@@ -273,7 +267,7 @@ test("runtime installer refuses symlinked mutable roots without touching their t
   await fs.symlink(outsideRuntime, paths.runtimeRoot);
   const linkedRootInstaller = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   await assert.rejects(
     linkedRootInstaller.install({ sourceRoot: runtimePackage.sourceRoot }),
@@ -284,7 +278,7 @@ test("runtime installer refuses symlinked mutable roots without touching their t
   await fs.unlink(paths.runtimeRoot);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   await fs.mkdir(installer.versionsRoot, { recursive: true });
   const outsideStaging = path.join(paths.root, "outside-staging");
@@ -302,7 +296,7 @@ test("runtime installer atomically quarantines a stale installation lock", async
   const paths = await fixture(t);
   const installer = new VersionedRuntimeInstaller({
     runtimeRoot: paths.runtimeRoot,
-    namespace: "dreamskin.trae",
+    namespace: "dreamskin.workbuddy",
   });
   const runtimePackage = await createPackage(paths.root, { version: "4.1.0" });
   await installer.ensureRoots();

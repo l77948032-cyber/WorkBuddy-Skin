@@ -102,7 +102,7 @@ function pluginInput(input) {
 }
 
 export class DreamSkinToolCore {
-  constructor({ pluginManager, defaultPluginId = "dreamskin.trae" } = {}) {
+  constructor({ pluginManager, defaultPluginId = "dreamskin.workbuddy" } = {}) {
     if (!pluginManager || typeof pluginManager.runThemeAction !== "function") {
       throw new ToolError("INVALID_TOOL_DEPENDENCY", "DreamSkin Tool requires a PluginManager.");
     }

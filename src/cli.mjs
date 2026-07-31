@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import {
-  createDreamSkinCliContext,
-  DREAMSKIN_PLUGIN_IDS,
+  createWorkBuddyCliContext,
+  WORKBUDDY_PLUGIN_ID,
 } from "./core/cli-context.mjs";
 import { ToolError } from "./core/errors.mjs";
 import { AGENT_TOOL_VERSION } from "./core/service.mjs";
@@ -13,45 +13,38 @@ export const DREAMSKIN_CLI_PROTOCOL_VERSION = 1;
 export const MAX_CLI_INPUT_BYTES = 1024 * 1024;
 
 const HELP = Object.freeze({
-  command: "skin-cli",
+  command: "workbuddy-skin",
   protocolVersion: DREAMSKIN_CLI_PROTOCOL_VERSION,
   usage: [
-    "skin-cli targets",
-    "skin-cli paths [--target <trae|workbuddy>]",
-    "skin-cli templates --target <trae|workbuddy>",
-    "skin-cli template install <templateId> --as <themeId> --target <trae|workbuddy> [--input <json|@file|->] [--dry-run]",
-    "skin-cli theme inspect --target <trae|workbuddy>",
-    "skin-cli theme list --target <trae|workbuddy>",
-    "skin-cli theme read <themeId> --target <trae|workbuddy>",
-    "skin-cli theme create <themeId> --target <trae|workbuddy> [--input <json|@file|->] [--source <templateId>] [--dry-run]",
-    "skin-cli theme update <themeId> --target <trae|workbuddy> --expected-revision <sha256> --input <json|@file|-> [--dry-run]",
-    "skin-cli theme asset import <themeId> --target <trae|workbuddy> --expected-revision <sha256> --file <png|jpg|jpeg|webp> [--dry-run]",
-    "skin-cli theme validate <themeId> --target <trae|workbuddy>",
-    "skin-cli theme validate --target <trae|workbuddy> --input <json|@file|->",
-    "skin-cli theme delete <themeId> --target <trae|workbuddy> --expected-revision <sha256> [--edition <auto|cn|international>]",
-    "skin-cli status --target <trae|workbuddy> [--edition <auto|cn|international>]",
-    "skin-cli apply <themeId> --target <trae|workbuddy> [--edition <auto|cn|international>]",
-    "skin-cli verify --target <trae|workbuddy> [--edition <auto|cn|international>] [--screenshot <png>]",
-    "skin-cli preview <themeId> --target <trae|workbuddy> [--edition <auto|cn|international>] [--screenshot <png>]",
-    "skin-cli restore --target <trae|workbuddy> [--edition <auto|cn|international>]",
-    "skin-cli doctor [--target <trae|workbuddy>] [--edition <auto|cn|international>]",
+    "workbuddy-skin paths",
+    "workbuddy-skin templates",
+    "workbuddy-skin template install <templateId> --as <themeId> [--input <json|@file|->] [--dry-run]",
+    "workbuddy-skin theme inspect",
+    "workbuddy-skin theme list",
+    "workbuddy-skin theme read <themeId>",
+    "workbuddy-skin theme create <themeId> [--input <json|@file|->] [--source <templateId>] [--dry-run]",
+    "workbuddy-skin theme update <themeId> --expected-revision <sha256> --input <json|@file|-> [--dry-run]",
+    "workbuddy-skin theme asset import <themeId> --expected-revision <sha256> --file <png|jpg|jpeg|webp> [--dry-run]",
+    "workbuddy-skin theme validate <themeId>",
+    "workbuddy-skin theme validate --input <json|@file|->",
+    "workbuddy-skin theme delete <themeId> --expected-revision <sha256>",
+    "workbuddy-skin status",
+    "workbuddy-skin apply <themeId>",
+    "workbuddy-skin verify [--screenshot <png>]",
+    "workbuddy-skin preview <themeId> [--screenshot <png>]",
+    "workbuddy-skin restore",
+    "workbuddy-skin doctor",
   ],
   notes: [
-    "Every mutating or runtime command requires an explicit target.",
-    "Friendly target names `trae` and `workbuddy` map to stable plugin ids.",
-    "Use --edition with Trae when International and SOLO CN are both installed; WorkBuddy does not accept it.",
+    "Every command is scoped to the built-in dreamskin.workbuddy plugin.",
+    "--target, --plugin, and --edition are intentionally unsupported.",
     "The command writes exactly one JSON envelope to stdout and uses exit code 0 or 1.",
     "Use the revision returned by read/list as --expected-revision for every update.",
     "Background files are accepted only by `theme asset import` and are copied into the managed theme library.",
   ],
 });
 
-const TARGET_ALIASES = Object.freeze({
-  trae: "dreamskin.trae",
-  "dreamskin.trae": "dreamskin.trae",
-  workbuddy: "dreamskin.workbuddy",
-  "dreamskin.workbuddy": "dreamskin.workbuddy",
-});
+const RETIRED_OPTIONS = new Set(["--target", "--plugin", "--edition"]);
 
 function optionValue(argv, index, flag) {
   const value = argv[index + 1];
@@ -71,20 +64,20 @@ function parseOptions(argv) {
       positional.push(arg);
       continue;
     }
-    const canonical = arg === "--target" ? "--plugin" : arg;
-    if (seen.has(canonical)) {
-      throw new ToolError("INVALID_ARGUMENT", `Option ${canonical} cannot be repeated.`);
+    if (RETIRED_OPTIONS.has(arg)) {
+      throw new ToolError("INVALID_ARGUMENT", `${arg} is not supported by workbuddy-skin.`);
     }
-    seen.add(canonical);
-    if (canonical === "--plugin") options.pluginId = optionValue(argv, index++, arg);
-    else if (canonical === "--input") options.input = optionValue(argv, index++, arg);
-    else if (canonical === "--source") options.sourceId = optionValue(argv, index++, arg);
-    else if (canonical === "--as") options.themeId = optionValue(argv, index++, arg);
-    else if (canonical === "--file") options.assetFile = optionValue(argv, index++, arg);
-    else if (canonical === "--screenshot") options.screenshotPath = optionValue(argv, index++, arg);
-    else if (canonical === "--edition") options.edition = optionValue(argv, index++, arg);
-    else if (canonical === "--expected-revision") options.expectedRevision = optionValue(argv, index++, arg);
-    else if (canonical === "--dry-run") options.dryRun = true;
+    if (seen.has(arg)) {
+      throw new ToolError("INVALID_ARGUMENT", `Option ${arg} cannot be repeated.`);
+    }
+    seen.add(arg);
+    if (arg === "--input") options.input = optionValue(argv, index++, arg);
+    else if (arg === "--source") options.sourceId = optionValue(argv, index++, arg);
+    else if (arg === "--as") options.themeId = optionValue(argv, index++, arg);
+    else if (arg === "--file") options.assetFile = optionValue(argv, index++, arg);
+    else if (arg === "--screenshot") options.screenshotPath = optionValue(argv, index++, arg);
+    else if (arg === "--expected-revision") options.expectedRevision = optionValue(argv, index++, arg);
+    else if (arg === "--dry-run") options.dryRun = true;
     else throw new ToolError("INVALID_ARGUMENT", `Unknown option: ${arg}`);
   }
   return { positional, options };
@@ -182,53 +175,6 @@ function exactPositionals(values, count, operation) {
   }
 }
 
-function requiredPlugin(options, operation) {
-  if (typeof options.pluginId !== "string" || !options.pluginId) {
-    throw new ToolError("INVALID_ARGUMENT", `${operation} requires --target.`);
-  }
-  const pluginId = TARGET_ALIASES[options.pluginId.toLowerCase()];
-  if (!pluginId) {
-    throw new ToolError("INVALID_TARGET", `Unknown target '${options.pluginId}'.`, {
-      target: options.pluginId,
-      supported: ["trae", "workbuddy"],
-    });
-  }
-  return pluginId;
-}
-
-function optionalPlugin(options, operation) {
-  if (options.pluginId === undefined) return null;
-  return requiredPlugin(options, operation);
-}
-
-function runtimeEdition(options, pluginId, operation) {
-  if (options.edition === undefined) return pluginId === "dreamskin.trae" ? "auto" : null;
-  if (pluginId !== "dreamskin.trae") {
-    throw new ToolError("INVALID_ARGUMENT", `${operation} accepts --edition only with --target trae.`);
-  }
-  const edition = String(options.edition).toLowerCase();
-  if (!["auto", "cn", "international"].includes(edition)) {
-    throw new ToolError("INVALID_EDITION", `Unknown Trae edition '${options.edition}'.`, {
-      edition: options.edition,
-      supported: ["auto", "cn", "international"],
-    });
-  }
-  return edition;
-}
-
-async function withTraeEdition(pluginId, edition, action) {
-  if (pluginId !== "dreamskin.trae") return action();
-  const key = "TRAE_DREAM_SKIN_EDITION";
-  const previous = process.env[key];
-  process.env[key] = edition || "auto";
-  try {
-    return await action();
-  } finally {
-    if (previous === undefined) delete process.env[key];
-    else process.env[key] = previous;
-  }
-}
-
 function allowedOptions(options, allowed, operation) {
   const accepted = new Set(allowed);
   const unknown = Object.keys(options).filter((key) => !accepted.has(key));
@@ -254,20 +200,6 @@ function operationHint(argv) {
 }
 
 function scopeFrom(argv) {
-  const pluginIndex = argv.findIndex((value) => value === "--plugin" || value === "--target");
-  const target = pluginIndex >= 0 ? argv[pluginIndex + 1] : undefined;
-  const pluginId = typeof target === "string" ? TARGET_ALIASES[target.toLowerCase()] || target : undefined;
-  const editionIndex = argv.indexOf("--edition");
-  const explicitEdition = editionIndex >= 0 ? argv[editionIndex + 1] : undefined;
-  const editionAware = ["status", "apply", "verify", "preview", "restore", "doctor"].includes(argv[0])
-    || (argv[0] === "theme" && argv[1] === "delete");
-  const edition = typeof explicitEdition === "string" && !explicitEdition.startsWith("--")
-    ? explicitEdition
-    : editionIndex < 0
-      && editionAware
-      && (pluginId === "dreamskin.trae" || (argv[0] === "doctor" && pluginId === undefined))
-      ? "auto"
-      : undefined;
   const themeIdIndex = argv[0] === "theme" && argv[1] === "asset" && argv[2] === "import" ? 3 : 2;
   const themeId = argv[0] === "theme" && argv[themeIdIndex] && !argv[themeIdIndex].startsWith("--")
     ? argv[themeIdIndex]
@@ -275,13 +207,19 @@ function scopeFrom(argv) {
       ? argv[1]
       : undefined;
   return {
-    ...(typeof pluginId === "string" ? { pluginId } : {}),
+    pluginId: WORKBUDDY_PLUGIN_ID,
     ...(typeof themeId === "string" ? { themeId } : {}),
-    ...(typeof edition === "string" ? { edition } : {}),
   };
 }
 
 export async function dispatchCli(argv, runtime, io) {
+  const retiredOption = argv.find((value) => RETIRED_OPTIONS.has(value));
+  if (retiredOption) {
+    throw new ToolError(
+      "INVALID_ARGUMENT",
+      `${retiredOption} is not supported by workbuddy-skin.`,
+    );
+  }
   if (argv.length === 0 || argv[0] === "help" || argv.includes("--help")) {
     return { operation: "help", scope: {}, result: HELP };
   }
@@ -293,42 +231,33 @@ export async function dispatchCli(argv, runtime, io) {
       result: { version: AGENT_TOOL_VERSION, protocolVersion: DREAMSKIN_CLI_PROTOCOL_VERSION },
     };
   }
-  if (argv[0] === "targets") {
-    exactPositionals(argv, 1, "targets");
-    return { operation: "targets", scope: {}, result: { targets: runtime.targets() } };
-  }
   if (argv[0] === "paths") {
     const { positional, options } = parseOptions(argv.slice(1));
     exactPositionals(positional, 0, "paths");
-    allowedOptions(options, ["pluginId"], "paths");
-    const pluginId = optionalPlugin(options, "paths");
-    const selected = pluginId
-      ? [[pluginId, runtime.paths.targets[pluginId]]]
-      : Object.entries(runtime.paths.targets);
+    allowedOptions(options, [], "paths");
     return {
       operation: "paths",
-      scope: pluginId ? { pluginId } : {},
+      scope: { pluginId: WORKBUDDY_PLUGIN_ID },
       result: {
         dataRoot: runtime.paths.dataRoot,
-        usingLegacyDataRoot: Boolean(runtime.paths.migratedFromStudio),
-        targets: selected.map(([id, paths]) => ({
-          pluginId: id,
-          themesRoot: paths.themesRoot,
-          runtimeRoot: runtime.runtimeRoots?.[id] || runtime.paths.resourceRoot,
-          runtimeStateRoot: runtime.paths.runtimeStateRoots[id],
-        })),
+        pluginId: WORKBUDDY_PLUGIN_ID,
+        themesRoot: runtime.paths.target.themesRoot,
+        runtimeRoot: runtime.runtimeRoot || runtime.paths.resourceRoot,
+        runtimeStateRoot: runtime.paths.runtimeStateRoot,
       },
     };
   }
   if (argv[0] === "templates") {
     const { positional, options } = parseOptions(argv.slice(1));
     exactPositionals(positional, 0, "template.list");
-    allowedOptions(options, ["pluginId"], "template.list");
-    const pluginId = requiredPlugin(options, "template.list");
-    const inspected = await runtime.tool.execute({ action: "inspect", pluginId });
+    allowedOptions(options, [], "template.list");
+    const inspected = await runtime.tool.execute({
+      action: "inspect",
+      pluginId: WORKBUDDY_PLUGIN_ID,
+    });
     return {
       operation: "template.list",
-      scope: { pluginId },
+      scope: { pluginId: WORKBUDDY_PLUGIN_ID },
       result: inspected.catalog,
     };
   }
@@ -338,18 +267,17 @@ export async function dispatchCli(argv, runtime, io) {
     }
     const operation = "template.install";
     const { positional, options } = parseOptions(argv.slice(2));
-    allowedOptions(options, ["pluginId", "themeId", "input", "dryRun"], operation);
+    allowedOptions(options, ["themeId", "input", "dryRun"], operation);
     exactPositionals(positional, 1, operation);
-    const pluginId = requiredPlugin(options, operation);
     if (!options.themeId) {
       throw new ToolError("INVALID_ARGUMENT", `${operation} requires --as.`);
     }
     return {
       operation,
-      scope: { pluginId, themeId: options.themeId },
+      scope: { pluginId: WORKBUDDY_PLUGIN_ID, themeId: options.themeId },
       result: await runtime.tool.execute({
         action: "create",
-        pluginId,
+        pluginId: WORKBUDDY_PLUGIN_ID,
         themeId: options.themeId,
         sourceId: positional[0],
         themePatch: await readOptionalInput(options.input, io.stdin),
@@ -360,48 +288,37 @@ export async function dispatchCli(argv, runtime, io) {
   if (["status", "apply", "verify", "preview", "restore"].includes(argv[0])) {
     const operation = argv[0];
     const { positional, options } = parseOptions(argv.slice(1));
-    allowedOptions(options, ["pluginId", "screenshotPath", "edition"], operation);
-    const pluginId = requiredPlugin(options, operation);
-    const edition = runtimeEdition(options, pluginId, operation);
+    allowedOptions(options, ["screenshotPath"], operation);
     if (["apply", "preview"].includes(operation)) exactPositionals(positional, 1, operation);
     else exactPositionals(positional, 0, operation);
     if (!["verify", "preview"].includes(operation) && options.screenshotPath) {
       throw new ToolError("INVALID_ARGUMENT", `${operation} does not accept --screenshot.`);
     }
     const scope = {
-      pluginId,
-      ...(edition ? { edition } : {}),
+      pluginId: WORKBUDDY_PLUGIN_ID,
       ...(["apply", "preview"].includes(operation) ? { themeId: positional[0] } : {}),
     };
     if (operation === "status") {
       return {
         operation,
         scope,
-        result: await withTraeEdition(pluginId, edition, () => runtime.runtime.status(pluginId)),
+        result: await runtime.runtime.status(WORKBUDDY_PLUGIN_ID),
       };
     }
     if (operation === "apply") {
       return {
         operation,
         scope,
-        result: await withTraeEdition(
-          pluginId,
-          edition,
-          () => runtime.runtime.apply(positional[0], pluginId),
-        ),
+        result: await runtime.runtime.apply(positional[0], WORKBUDDY_PLUGIN_ID),
       };
     }
     if (operation === "verify") {
       return {
         operation,
         scope,
-        result: await withTraeEdition(
-          pluginId,
-          edition,
-          () => runtime.runtime.verify(
-            options.screenshotPath ? { screenshotPath: path.resolve(options.screenshotPath) } : {},
-            pluginId,
-          ),
+        result: await runtime.runtime.verify(
+          options.screenshotPath ? { screenshotPath: path.resolve(options.screenshotPath) } : {},
+          WORKBUDDY_PLUGIN_ID,
         ),
       };
     }
@@ -409,41 +326,33 @@ export async function dispatchCli(argv, runtime, io) {
       return {
         operation,
         scope,
-        result: await withTraeEdition(pluginId, edition, () => runtime.runtime.preview({
+        result: await runtime.runtime.preview({
           id: positional[0],
           screenshot: true,
           ...(options.screenshotPath ? { screenshotPath: path.resolve(options.screenshotPath) } : {}),
-        }, pluginId)),
+        }, WORKBUDDY_PLUGIN_ID),
       };
     }
     return {
       operation,
       scope,
-      result: await withTraeEdition(pluginId, edition, () => runtime.runtime.restore(pluginId)),
+      result: await runtime.runtime.restore(WORKBUDDY_PLUGIN_ID),
     };
   }
   if (argv[0] === "doctor") {
     const { positional, options } = parseOptions(argv.slice(1));
     exactPositionals(positional, 0, "doctor");
-    allowedOptions(options, ["pluginId", "edition"], "doctor");
-    const pluginId = optionalPlugin(options, "doctor");
-    const edition = runtimeEdition(options, pluginId || "dreamskin.trae", "doctor");
-    const targets = runtime.targets().filter((target) => !pluginId || target.pluginId === pluginId);
-    const results = await Promise.all(targets.map(async (target) => ({
-      ...target,
-      status: await withTraeEdition(
-        target.pluginId,
-        target.pluginId === "dreamskin.trae" ? edition : null,
-        () => runtime.runtime.status(target.pluginId),
-      ),
-    })));
+    allowedOptions(options, [], "doctor");
     return {
       operation: "doctor",
-      scope: {
-        ...(pluginId ? { pluginId } : {}),
-        ...(edition ? { edition } : {}),
+      scope: { pluginId: WORKBUDDY_PLUGIN_ID },
+      result: {
+        platform: process.platform,
+        target: {
+          ...runtime.target,
+          status: await runtime.runtime.status(WORKBUDDY_PLUGIN_ID),
+        },
       },
-      result: { platform: process.platform, targets: results },
     };
   }
   if (argv[0] !== "theme") {
@@ -467,11 +376,11 @@ export async function dispatchCli(argv, runtime, io) {
     operation = `theme.${themeCommand}`;
     ({ positional, options } = parseOptions(argv.slice(2)));
   }
-  const pluginId = requiredPlugin(options, operation);
+  const pluginId = WORKBUDDY_PLUGIN_ID;
   const scope = { pluginId };
 
   if (themeCommand === "asset") {
-    allowedOptions(options, ["pluginId", "assetFile", "expectedRevision", "dryRun"], operation);
+    allowedOptions(options, ["assetFile", "expectedRevision", "dryRun"], operation);
     exactPositionals(positional, 1, operation);
     scope.themeId = positional[0];
     if (!options.expectedRevision) {
@@ -495,17 +404,17 @@ export async function dispatchCli(argv, runtime, io) {
   }
 
   if (themeCommand === "inspect") {
-    allowedOptions(options, ["pluginId"], operation);
+    allowedOptions(options, [], operation);
     exactPositionals(positional, 0, operation);
     return { operation, scope, result: await runtime.tool.execute({ action: "inspect", pluginId }) };
   }
   if (themeCommand === "list") {
-    allowedOptions(options, ["pluginId"], operation);
+    allowedOptions(options, [], operation);
     exactPositionals(positional, 0, operation);
     return { operation, scope, result: await runtime.tool.execute({ action: "list", pluginId }) };
   }
   if (themeCommand === "read") {
-    allowedOptions(options, ["pluginId"], operation);
+    allowedOptions(options, [], operation);
     exactPositionals(positional, 1, operation);
     scope.themeId = positional[0];
     return {
@@ -515,7 +424,7 @@ export async function dispatchCli(argv, runtime, io) {
     };
   }
   if (themeCommand === "create") {
-    allowedOptions(options, ["pluginId", "input", "sourceId", "dryRun"], operation);
+    allowedOptions(options, ["input", "sourceId", "dryRun"], operation);
     exactPositionals(positional, 1, operation);
     scope.themeId = positional[0];
     const themePatch = await readOptionalInput(options.input, io.stdin);
@@ -533,7 +442,7 @@ export async function dispatchCli(argv, runtime, io) {
     };
   }
   if (themeCommand === "update") {
-    allowedOptions(options, ["pluginId", "input", "expectedRevision", "dryRun"], operation);
+    allowedOptions(options, ["input", "expectedRevision", "dryRun"], operation);
     exactPositionals(positional, 1, operation);
     scope.themeId = positional[0];
     if (!options.expectedRevision) {
@@ -554,27 +463,25 @@ export async function dispatchCli(argv, runtime, io) {
     };
   }
   if (themeCommand === "delete") {
-    allowedOptions(options, ["pluginId", "expectedRevision", "edition"], operation);
+    allowedOptions(options, ["expectedRevision"], operation);
     exactPositionals(positional, 1, operation);
     scope.themeId = positional[0];
-    const edition = runtimeEdition(options, pluginId, operation);
-    if (edition) scope.edition = edition;
     if (!options.expectedRevision) {
       throw new ToolError("INVALID_ARGUMENT", `${operation} requires --expected-revision.`);
     }
     return {
       operation,
       scope,
-      result: await withTraeEdition(pluginId, edition, () => runtime.tool.execute({
+      result: await runtime.tool.execute({
         action: "delete",
         pluginId,
         themeId: positional[0],
         expectedRevision: options.expectedRevision,
-      })),
+      }),
     };
   }
   if (themeCommand === "validate") {
-    allowedOptions(options, ["pluginId", "input"], operation);
+    allowedOptions(options, ["input"], operation);
     if (positional.length > 1 || (positional.length === 1 && options.input)) {
       throw new ToolError("INVALID_ARGUMENT", `${operation} requires exactly one theme id or --input JSON.`);
     }
@@ -596,26 +503,6 @@ export async function dispatchCli(argv, runtime, io) {
     };
   }
   throw new ToolError("INVALID_ARGUMENT", `Unknown theme command: ${themeCommand}`);
-}
-
-function contextPluginIds(argv) {
-  const command = argv[0];
-  const targetRequired = command === "templates"
-    || command === "template"
-    || command === "theme"
-    || ["status", "apply", "verify", "preview", "restore"].includes(command);
-  const targetOptional = command === "paths" || command === "doctor";
-  if (!targetRequired && !targetOptional && command !== "targets") return null;
-  const indexes = argv
-    .map((value, index) => (value === "--target" || value === "--plugin" ? index : -1))
-    .filter((index) => index >= 0);
-  if (command === "targets" && indexes.length > 0) return null;
-  if (indexes.length === 0) return targetRequired ? null : undefined;
-  if (indexes.length !== 1) return null;
-  const value = argv[indexes[0] + 1];
-  if (typeof value !== "string" || value.startsWith("--")) return null;
-  const pluginId = TARGET_ALIASES[value.toLowerCase()];
-  return pluginId && DREAMSKIN_PLUGIN_IDS.includes(pluginId) ? [pluginId] : null;
 }
 
 async function readStdin() {
@@ -650,7 +537,7 @@ function failureEnvelope(error, operation, scope) {
     scope,
     error: {
       code: isDomainError ? error.code : "INTERNAL_ERROR",
-      message: isDomainError ? error.message : "DreamSkin could not complete the operation.",
+      message: isDomainError ? error.message : "WorkBuddy Skin could not complete the operation.",
       ...(!isDomainError || error.details === undefined ? {} : { details: error.details }),
     },
   };
@@ -671,12 +558,7 @@ export async function runCli(
       || argv[0] === "version"
       || argv[0] === "--version";
     if (!runtime && !contextFree) {
-      const pluginIds = contextPluginIds(argv);
-      if (pluginIds !== null) {
-        runtime = await createDreamSkinCliContext({
-          ...(pluginIds === undefined ? {} : { pluginIds }),
-        });
-      }
+      runtime = await createWorkBuddyCliContext();
     }
     const result = await dispatchCli(argv, runtime, io);
     io.stdout.write(`${JSON.stringify(successEnvelope(result), null, 2)}\n`);
@@ -689,7 +571,7 @@ export async function runCli(
       try {
         await runtime.close();
       } catch (error) {
-        io.stderr?.write?.(`DreamSkin CLI shutdown warning: ${error.message}\n`);
+        io.stderr?.write?.(`WorkBuddy Skin shutdown warning: ${error.message}\n`);
       }
     }
   }

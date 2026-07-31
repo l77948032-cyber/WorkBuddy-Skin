@@ -30,7 +30,11 @@ async function assertContainedPath(filePath, rootPath, label) {
   if (!isWithin(realRoot, realFile)) throw new Error(`${label} must stay inside ${rootPath}`);
 }
 
-export async function loadTheme(themeDir, { projectRoot = PROJECT_ROOT, allowedRoot } = {}) {
+export async function loadTheme(themeDir, {
+  projectRoot = PROJECT_ROOT,
+  allowedRoot,
+  fallbackCssPath,
+} = {}) {
   const resolvedThemeDir = path.resolve(themeDir);
   const directoryStat = await fs.lstat(resolvedThemeDir);
   if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()) {
@@ -71,7 +75,14 @@ export async function loadTheme(themeDir, { projectRoot = PROJECT_ROOT, allowedR
     await assertContainedPath(customCssPath, resolvedThemeDir, "Skin CSS");
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
-    cssPath = path.join(projectRoot, "assets", "trae-skin.css");
+    const projectIsPluginRoot = path.basename(projectRoot) === "workbuddy"
+      && path.basename(path.dirname(projectRoot)) === "plugins";
+    cssPath = path.resolve(
+      fallbackCssPath
+        || (projectIsPluginRoot
+          ? path.join(projectRoot, "assets", "workbuddy-skin.css")
+          : path.join(projectRoot, "plugins", "workbuddy", "assets", "workbuddy-skin.css")),
+    );
     await assertContainedPath(cssPath, projectRoot, "Fallback skin CSS");
   }
   const cssBuffer = await readSizedFile(cssPath, MAX_CSS_BYTES, "Skin CSS");

@@ -20,8 +20,21 @@ async function jsonCommand(command, args, options) {
   return JSON.parse(stdout);
 }
 
-test("npm tarball installs globally and runs the standalone CLI lifecycle", async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dreamskin-cli-package-"));
+async function rejectedJsonCommand(command, args, options) {
+  try {
+    await execFile(command, args, {
+      ...options,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    });
+  } catch (error) {
+    return JSON.parse(error.stdout);
+  }
+  assert.fail(`Expected command to fail: ${args.join(" ")}`);
+}
+
+test("npm tarball installs one standalone WorkBuddy command and runtime", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-cli-package-"));
   const packageDirectory = path.join(root, "package");
   const prefix = path.join(root, "global");
   const dataRoot = path.join(root, "data");
@@ -37,8 +50,6 @@ test("npm tarball installs globally and runs the standalone CLI lifecycle", asyn
   ], { cwd: ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const tarballs = (await fs.readdir(packageDirectory)).filter((file) => file.endsWith(".tgz"));
   assert.deepEqual(tarballs, [`${packageMetadata.name}-${packageMetadata.version}.tgz`]);
-  const tarball = path.join(packageDirectory, tarballs[0]);
-  await fs.access(tarball);
 
   await execFile("npm", [
     "install",
@@ -46,70 +57,47 @@ test("npm tarball installs globally and runs the standalone CLI lifecycle", asyn
     "--prefix",
     prefix,
     "--ignore-scripts",
-    tarball,
+    path.join(packageDirectory, tarballs[0]),
   ], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
 
-  const command = path.join(prefix, "bin", "skin-cli");
+  assert.deepEqual(await fs.readdir(path.join(prefix, "bin")), ["workbuddy-skin"]);
+  const command = path.join(prefix, "bin", "workbuddy-skin");
   const environment = {
     ...process.env,
-    DREAMSKIN_USER_DATA_ROOT: dataRoot,
+    WORKBUDDY_SKIN_DATA_ROOT: dataRoot,
+    WORKBUDDY_SKIN_RUNTIME_STATE_ROOT: path.join(root, "runtime-state"),
   };
-  const version = await jsonCommand(command, ["version"], { env: environment });
-  assert.equal(version.ok, true);
-  assert.equal(version.result.version, packageMetadata.version);
-  const aliasVersion = await jsonCommand(
-    path.join(prefix, "bin", "dreamskin"),
-    ["version"],
-    { env: environment },
-  );
-  assert.deepEqual(aliasVersion, version);
+  const version = await jsonCommand(command, ["--version"], { env: environment });
+  assert.equal(version.result.version, "0.6.0");
 
-  const targets = await jsonCommand(command, ["targets"], { env: environment });
-  assert.equal(targets.ok, true);
-  assert.deepEqual(
-    targets.result.targets.map(({ targetId }) => targetId).sort(),
-    ["trae", "workbuddy"],
-  );
   const paths = await jsonCommand(command, ["paths"], { env: environment });
-  assert.equal(paths.ok, true);
-
-  const templates = await jsonCommand(command, ["templates", "--target", "trae"], { env: environment });
-  assert.equal(templates.ok, true);
-  assert.ok(templates.result.templates.some(({ id }) => id === "paper-aurora"));
+  assert.equal(paths.result.pluginId, "dreamskin.workbuddy");
+  const templates = await jsonCommand(command, ["templates"], { env: environment });
+  assert.ok(templates.result.templates.some(({ id }) => id === "paper-garden"));
 
   const created = await jsonCommand(command, [
-    "template",
-    "install",
-    "paper-aurora",
-    "--as",
-    "tarball-theme",
-    "--target",
-    "trae",
+    "template", "install", "paper-garden", "--as", "tarball-theme",
   ], { env: environment });
-  assert.equal(created.ok, true);
   assert.equal(created.scope.themeId, "tarball-theme");
-
   const read = await jsonCommand(command, [
-    "theme",
-    "read",
-    "tarball-theme",
-    "--target",
-    "trae",
+    "theme", "read", "tarball-theme",
   ], { env: environment });
-  assert.equal(read.ok, true);
   assert.equal(read.result.theme.id, "tarball-theme");
+
+  for (const args of [
+    ["templates", "--target", "workbuddy"],
+    ["status", "--edition", "auto"],
+  ]) {
+    const failed = await rejectedJsonCommand(command, args, { env: environment });
+    assert.equal(failed.error.code, "INVALID_ARGUMENT");
+  }
+
   await fs.access(path.join(
-    paths.result.dataRoot,
-    "runtime",
-    "dreamskin.trae",
-    "versions",
-    packageMetadata.version,
-  ));
-  await fs.access(path.join(
-    paths.result.dataRoot,
+    dataRoot,
     "runtime",
     "dreamskin.workbuddy",
     "versions",
     packageMetadata.version,
   ));
+  await assert.rejects(() => fs.access(path.join(dataRoot, "runtime", "dreamskin.trae")));
 });

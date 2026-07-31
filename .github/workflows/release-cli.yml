@@ -1,4 +1,4 @@
-name: skin-cli Release
+name: workbuddy-skin Release
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - "v*"
 
 concurrency:
-  group: skin-cli-release-${{ github.ref }}
+  group: workbuddy-skin-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -61,16 +61,17 @@ jobs:
           set -euo pipefail
           package_path="$(find "${GITHUB_WORKSPACE}/release" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "${package_path}"
-          prefix="${RUNNER_TEMP}/skin-cli-global"
-          smoke_root="${RUNNER_TEMP}/skin-cli-smoke"
+          prefix="${RUNNER_TEMP}/workbuddy-skin-global"
+          smoke_root="${RUNNER_TEMP}/workbuddy-skin-smoke"
           npm install --global --prefix "${prefix}" "${package_path}"
-          export DREAMSKIN_USER_DATA_ROOT="${smoke_root}/user-data"
-          export DREAMSKIN_DATA_ROOT="${smoke_root}/data"
-          export DREAMSKIN_TRAE_RUNTIME_STATE_ROOT="${smoke_root}/trae-runtime"
-          export DREAMSKIN_WORKBUDDY_RUNTIME_STATE_ROOT="${smoke_root}/workbuddy-runtime"
-          "${prefix}/bin/skin-cli" --version
-          "${prefix}/bin/skin-cli" targets
-          "${prefix}/bin/skin-cli" templates --target trae
+          export WORKBUDDY_SKIN_USER_DATA_ROOT="${smoke_root}/user-data"
+          export WORKBUDDY_SKIN_DATA_ROOT="${smoke_root}/data"
+          export WORKBUDDY_SKIN_RUNTIME_STATE_ROOT="${smoke_root}/runtime-state"
+          "${prefix}/bin/workbuddy-skin" --version
+          "${prefix}/bin/workbuddy-skin" paths
+          "${prefix}/bin/workbuddy-skin" templates
+          ! "${prefix}/bin/workbuddy-skin" templates --target workbuddy
+          ! "${prefix}/bin/workbuddy-skin" status --edition auto
 
       - name: Generate SHA-256 checksum
         shell: bash
@@ -84,7 +85,7 @@ jobs:
       - name: Upload CLI package artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: skin-cli-${{ github.ref_name }}
+          name: workbuddy-skin-${{ github.ref_name }}
           if-no-files-found: error
           retention-days: 30
           path: |
@@ -107,7 +108,7 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" release/*.tgz release/SHA256SUMS.txt \
             --repo "${GITHUB_REPOSITORY}" \
             --verify-tag \
-            --title "skin-cli ${GITHUB_REF_NAME}" \
+            --title "workbuddy-skin ${GITHUB_REF_NAME}" \
             --generate-notes
 
 # This workflow intentionally ships only the npm tarball through GitHub Releases.

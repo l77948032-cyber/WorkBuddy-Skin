@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createTraePlugin } from "../plugins/trae/plugin.mjs";
+import { createWorkBuddyPlugin } from "../plugins/workbuddy/plugin.mjs";
 import { PluginManager } from "../src/core/plugin-manager.mjs";
 import { validatePluginManifest } from "../src/core/plugin-api.mjs";
 
@@ -152,7 +152,7 @@ test("plugin manager rejects duplicates, missing resources, and undeclared actio
   );
 });
 
-test("Trae plugin delegates Tool, preview, and runtime capabilities to the injected service", async () => {
+test("WorkBuddy plugin delegates Tool, preview, and runtime capabilities to the injected service", async () => {
   const calls = [];
   const service = {
     catalogRepository: {
@@ -170,7 +170,7 @@ test("Trae plugin delegates Tool, preview, and runtime capabilities to the injec
     restore: async () => { calls.push(["restore"]); return { restored: true }; },
     runtimeStatus: async () => { calls.push(["runtime-status"]); return { available: true }; },
   };
-  const plugin = await createTraePlugin({ service });
+  const plugin = await createWorkBuddyPlugin({ service });
 
   await plugin.executeThemeAction("inspect", {});
   await plugin.executeThemeAction("read", { id: "sunlit" });
@@ -187,10 +187,10 @@ test("Trae plugin delegates Tool, preview, and runtime capabilities to the injec
   await plugin.executeRuntimeAction("restore", {});
   await plugin.runtimeStatus();
 
-  assert.equal(plugin.manifest.target.id, "trae");
+  assert.equal(plugin.manifest.target.id, "workbuddy");
   assert.equal(created.expectedRevision, null);
   assert.equal(created.operation, "write");
-  assert.equal(created.imagePath, "/catalog/paper-aurora/background.png");
+  assert.equal(created.imagePath, "/catalog/harbor-focus/background.png");
   assert.equal(created.themePatch.id, "blank");
   assert.equal(created.themePatch.name, "Blank");
   assert.equal(created.themePatch.appearance.backgroundOpacity, 0);

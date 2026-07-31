@@ -9,7 +9,6 @@ const SEMVER_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z
 const JSON_TARGETS = Object.freeze([
   { file: "package.json", paths: [["version"]] },
   { file: "package-lock.json", paths: [["version"], ["packages", "", "version"]] },
-  { file: "plugins/trae/plugin.json", paths: [["version"]] },
   { file: "plugins/workbuddy/plugin.json", paths: [["version"]] },
 ]);
 
@@ -19,20 +18,8 @@ const SOURCE_TARGETS = Object.freeze([
     pattern: /(export const AGENT_TOOL_VERSION = ")([^"]+)(";)/,
   },
   {
-    file: "scripts/common-macos.sh",
-    pattern: /(SKIN_VERSION=")([^"]+)(")/,
-  },
-  {
-    file: "scripts/injector.mjs",
-    pattern: /(export const SKIN_VERSION = ")([^"]+)(";)/,
-  },
-  {
     file: "scripts/common-workbuddy-macos.sh",
     pattern: /(SKIN_VERSION=")([^"]+)(")/,
-  },
-  {
-    file: "scripts/common-windows.ps1",
-    pattern: /(\$Script:TraeSkinVersion = ')([^']+)(')/,
   },
   {
     file: "scripts/workbuddy-injector.mjs",

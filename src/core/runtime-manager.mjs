@@ -1,7 +1,7 @@
 import { ToolError } from "./errors.mjs";
 
 export class HostRuntimeManager {
-  constructor({ pluginManager, defaultPluginId = "dreamskin.trae" } = {}) {
+  constructor({ pluginManager, defaultPluginId = "dreamskin.workbuddy" } = {}) {
     if (!pluginManager || typeof pluginManager.runRuntimeAction !== "function") {
       throw new ToolError("INVALID_RUNTIME_DEPENDENCY", "Host Runtime Manager requires a PluginManager.");
     }

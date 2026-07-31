@@ -6,44 +6,23 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultOutRoot = path.join(projectRoot, "build", "cli-runtime");
 
-const sharedFiles = Object.freeze([
-  "assets/trae-skin.css",
-  "scripts/injector.mjs",
+const runtimeFiles = Object.freeze([
+  "assets/workbuddy-renderer-inject.js",
+  "plugins/workbuddy/assets/workbuddy-skin.css",
+  "plugins/workbuddy/resources/components.v1.json",
+  "scripts/cdp-client.mjs",
+  "scripts/common-workbuddy-macos.sh",
+  "scripts/start-workbuddy-skin-macos.sh",
+  "scripts/status-workbuddy-skin-macos.sh",
+  "scripts/stop-workbuddy-skin-macos.sh",
+  "scripts/verify-workbuddy-skin-macos.sh",
+  "scripts/workbuddy-injector.mjs",
   "src/core/paths.mjs",
   "src/core/theme-loader.mjs",
   "src/core/theme-model.mjs",
 ]);
 
-const runtimeFiles = Object.freeze({
-  "dreamskin.trae": [
-    ...sharedFiles,
-    "assets/renderer-inject.js",
-    "registry/components.v1.json",
-    "registry/theme-runtime.v1.json",
-    "scripts/common-macos.sh",
-    "scripts/common-windows.ps1",
-    "scripts/start-trae-skin-macos.sh",
-    "scripts/start-trae-skin-windows.ps1",
-    "scripts/status-trae-skin-macos.sh",
-    "scripts/status-trae-skin-windows.ps1",
-    "scripts/stop-trae-skin-macos.sh",
-    "scripts/stop-trae-skin-windows.ps1",
-    "scripts/verify-trae-skin-macos.sh",
-    "scripts/verify-trae-skin-windows.ps1",
-  ],
-  "dreamskin.workbuddy": [
-    ...sharedFiles,
-    "assets/workbuddy-renderer-inject.js",
-    "plugins/workbuddy/assets/workbuddy-skin.css",
-    "plugins/workbuddy/resources/components.v1.json",
-    "scripts/common-workbuddy-macos.sh",
-    "scripts/start-workbuddy-skin-macos.sh",
-    "scripts/status-workbuddy-skin-macos.sh",
-    "scripts/stop-workbuddy-skin-macos.sh",
-    "scripts/verify-workbuddy-skin-macos.sh",
-    "scripts/workbuddy-injector.mjs",
-  ],
-});
+const WORKBUDDY_NAMESPACE = "dreamskin.workbuddy";
 
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -53,11 +32,12 @@ function portablePath(value) {
   return value.split(path.sep).join("/");
 }
 
-async function copyRuntime(namespace, version, outRoot) {
+async function copyRuntime(version, outRoot) {
+  const namespace = WORKBUDDY_NAMESPACE;
   const targetRoot = path.join(outRoot, namespace);
   await fs.mkdir(targetRoot, { recursive: true, mode: 0o700 });
   const records = [];
-  for (const relativePath of [...new Set(runtimeFiles[namespace])].sort()) {
+  for (const relativePath of runtimeFiles) {
     const source = path.join(projectRoot, relativePath);
     const stat = await fs.lstat(source);
     if (!stat.isFile() || stat.isSymbolicLink()) {
@@ -103,10 +83,7 @@ export async function buildCliRuntime({
   const runtimeVersion = version || packageJson.version;
   await fs.rm(outRoot, { recursive: true, force: true });
   await fs.mkdir(outRoot, { recursive: true, mode: 0o700 });
-  const runtimes = [];
-  for (const namespace of Object.keys(runtimeFiles).sort()) {
-    runtimes.push(await copyRuntime(namespace, runtimeVersion, outRoot));
-  }
+  const runtimes = [await copyRuntime(runtimeVersion, outRoot)];
   return {
     ok: true,
     version: runtimeVersion,

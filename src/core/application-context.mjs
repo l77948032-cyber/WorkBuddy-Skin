@@ -1,26 +1,12 @@
 import path from "node:path";
 
-import {
-  createTraePlugin,
-  loadTraePluginManifest,
-  TRAE_PLUGIN_ROOT,
-} from "../../plugins/trae/plugin.mjs";
 import { DreamSkinToolCore } from "./dreamskin-tool.mjs";
 import { ToolError } from "./errors.mjs";
-import {
-  BACKUPS_ROOT,
-  PROJECT_ROOT,
-  THEMES_ROOT,
-  TOOL_DATA_ROOT,
-} from "./paths.mjs";
-import { PlatformRuntime } from "./platform.mjs";
-import { resolvePluginResources } from "./plugin-api.mjs";
+import { PROJECT_ROOT, TOOL_DATA_ROOT } from "./paths.mjs";
 import { PluginManager } from "./plugin-manager.mjs";
 import { HostRuntimeManager } from "./runtime-manager.mjs";
-import { TraeDreamSkinService } from "./service.mjs";
-import { ThemeRepository } from "./theme-repository.mjs";
 
-export const DEFAULT_PLUGIN_ID = "dreamskin.trae";
+export const DEFAULT_PLUGIN_ID = "dreamskin.workbuddy";
 
 function assertTargetRegistration(target, index) {
   if (!target || typeof target !== "object" || Array.isArray(target) || !target.plugin) {
@@ -177,93 +163,4 @@ export class LegacyDreamSkinFacade {
   restore() {
     return this.runtime.restore(this.pluginId);
   }
-}
-
-export async function createTraeTargetRegistration({
-  themesRoot = THEMES_ROOT,
-  dataRoot = TOOL_DATA_ROOT,
-  backupsRoot = BACKUPS_ROOT,
-  projectRoot = PROJECT_ROOT,
-  pluginRoot = TRAE_PLUGIN_ROOT,
-  pluginManifestPath,
-  catalogThemesRoot,
-  registryPath,
-  runtimeMappingPath,
-  schemaPath,
-  scriptsRoot = path.join(projectRoot, "scripts"),
-  catalogRepository,
-  repository,
-  platformRuntime,
-  service,
-} = {}) {
-  const targetPluginRoot = path.resolve(pluginRoot);
-  const manifest = await loadTraePluginManifest({
-    pluginRoot: targetPluginRoot,
-    manifestPath: pluginManifestPath,
-  });
-  const pluginResources = await resolvePluginResources(manifest, targetPluginRoot);
-  const targetRepository = repository || new ThemeRepository({
-    themesRoot,
-    dataRoot,
-    backupsRoot,
-    projectRoot: targetPluginRoot,
-  });
-  const targetRuntime = platformRuntime || new PlatformRuntime({ themesRoot, scriptsRoot });
-  const resolvedCatalogThemesRoot = catalogThemesRoot || pluginResources.catalogRoot;
-  if (!catalogRepository && !resolvedCatalogThemesRoot) {
-    throw new ToolError("INVALID_PLUGIN_RESOURCE", "Trae plugin manifest must declare a catalog root.", {
-      pluginId: manifest.id,
-      resource: "catalog",
-    });
-  }
-  const targetCatalogRepository = catalogRepository || new ThemeRepository({
-    themesRoot: resolvedCatalogThemesRoot,
-    dataRoot: path.join(dataRoot, "catalog"),
-    backupsRoot: path.join(dataRoot, "catalog-backups"),
-    projectRoot: targetPluginRoot,
-  });
-  const targetService = service || new TraeDreamSkinService({
-    repository: targetRepository,
-    runtime: targetRuntime,
-    dataRoot,
-    catalogRepository: targetCatalogRepository,
-    registryPath: registryPath || pluginResources.registryPath,
-    runtimeMappingPath: runtimeMappingPath || pluginResources.runtimeMappingPath,
-    schemaPath: schemaPath || pluginResources.schemaPath,
-  });
-  const plugin = await createTraePlugin({
-    service: targetService,
-    pluginRoot: targetPluginRoot,
-    manifestPath: pluginManifestPath,
-  });
-  return {
-    plugin,
-    rootPath: plugin.rootPath,
-    repository: targetRepository,
-    platformRuntime: targetRuntime,
-    targetService,
-    catalogRepository: targetCatalogRepository,
-    themesRoot: path.resolve(themesRoot),
-    dataRoot: path.resolve(dataRoot),
-    registryPath: registryPath || pluginResources.registryPath,
-  };
-}
-
-export async function createTraeApplicationContext(options = {}) {
-  const target = await createTraeTargetRegistration(options);
-  const context = await createApplicationContext({
-    dataRoot: options.dataRoot || target.dataRoot,
-    projectRoot: options.projectRoot || PROJECT_ROOT,
-    defaultPluginId: target.plugin.manifest.id,
-    targets: [target],
-  });
-  return {
-    ...context,
-    legacyService: new LegacyDreamSkinFacade({
-      tool: context.tool,
-      runtime: context.runtime,
-      targetService: target.targetService,
-      pluginId: target.plugin.manifest.id,
-    }),
-  };
 }

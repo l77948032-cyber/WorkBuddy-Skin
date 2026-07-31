@@ -2,11 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { ToolError } from "./errors.mjs";
-import { PlatformRuntime } from "./platform.mjs";
-import { REGISTRY_PATH, RUNTIME_MAPPING_PATH, SCHEMA_PATH, TOOL_DATA_ROOT } from "./paths.mjs";
 import { ThemeRepository } from "./theme-repository.mjs";
 
-export const AGENT_TOOL_VERSION = "0.5.5";
+export const AGENT_TOOL_VERSION = "0.6.0";
 
 async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));
@@ -29,18 +27,24 @@ function publicRepository(repository) {
   };
 }
 
-export class TraeDreamSkinService {
+export class WorkBuddySkinService {
   constructor({
     repository = new ThemeRepository(),
-    runtime = new PlatformRuntime(),
-    registryPath = REGISTRY_PATH,
-    runtimeMappingPath = RUNTIME_MAPPING_PATH,
-    schemaPath = SCHEMA_PATH,
-    dataRoot = TOOL_DATA_ROOT,
+    runtime,
+    registryPath,
+    runtimeMappingPath,
+    schemaPath,
+    dataRoot,
     catalogRepository,
-    target = { id: "trae", name: "Trae" },
+    target = { id: "workbuddy", name: "WorkBuddy" },
     product,
   } = {}) {
+    if (!runtime) {
+      throw new ToolError(
+        "INVALID_APPLICATION_CONTEXT",
+        "WorkBuddySkinService requires a WorkBuddy runtime.",
+      );
+    }
     this.repository = repository;
     this.runtime = runtime;
     this.registryPath = registryPath;
@@ -49,8 +53,8 @@ export class TraeDreamSkinService {
     this.dataRoot = dataRoot;
     this.catalogRepository = catalogRepository;
     this.target = Object.freeze({ id: target.id, name: target.name });
-    this.product = product || `${target.name}-Dream-Skin`;
-    this.bundleSafetyKey = target.id === "trae" ? "modifiesTraeBundle" : "modifiesWorkBuddyBundle";
+    this.product = product || "WorkBuddy Skin";
+    this.bundleSafetyKey = "modifiesWorkBuddyBundle";
     this.runtimeQueue = Promise.resolve();
   }
 

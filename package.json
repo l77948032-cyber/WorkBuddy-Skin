@@ -1,56 +1,40 @@
 {
-  "name": "agent-dream-skin",
-  "version": "0.5.5",
-  "description": "Local skin CLI for Trae and WorkBuddy, designed for people and coding agents.",
+  "name": "workbuddy-skin",
+  "version": "0.6.0",
+  "description": "A local-first WorkBuddy skin CLI for people and coding agents.",
   "author": {
     "name": "l77948032-cyber",
     "url": "https://github.com/l77948032-cyber"
   },
   "license": "MIT",
-  "homepage": "https://github.com/l77948032-cyber/Agent-Dream-Skin#readme",
+  "homepage": "https://github.com/l77948032-cyber/WorkBuddy-Skin#readme",
   "bugs": {
-    "url": "https://github.com/l77948032-cyber/Agent-Dream-Skin/issues"
+    "url": "https://github.com/l77948032-cyber/WorkBuddy-Skin/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/l77948032-cyber/Agent-Dream-Skin.git"
+    "url": "git+https://github.com/l77948032-cyber/WorkBuddy-Skin.git"
   },
   "type": "module",
   "bin": {
-    "skin-cli": "./bin/skin-cli.mjs",
-    "dreamskin": "./bin/skin-cli.mjs"
+    "workbuddy-skin": "./bin/workbuddy-skin.mjs"
   },
   "files": [
-    "assets/renderer-inject.js",
-    "assets/trae-skin.css",
     "assets/workbuddy-renderer-inject.js",
-    "bin/skin-cli.mjs",
+    "bin/workbuddy-skin.mjs",
     "build/cli-runtime",
     "docs/agent-tool-v1.md",
     "docs/architecture.md",
     "docs/release-checklist.md",
-    "plugins/trae",
     "plugins/workbuddy",
-    "registry",
-    "schemas",
-    "scripts/common-macos.sh",
-    "scripts/common-windows.ps1",
+    "scripts/cdp-client.mjs",
     "scripts/common-workbuddy-macos.sh",
-    "scripts/injector.mjs",
-    "scripts/start-trae-skin-macos.sh",
-    "scripts/start-trae-skin-windows.ps1",
     "scripts/start-workbuddy-skin-macos.sh",
-    "scripts/status-trae-skin-macos.sh",
-    "scripts/status-trae-skin-windows.ps1",
     "scripts/status-workbuddy-skin-macos.sh",
-    "scripts/stop-trae-skin-macos.sh",
-    "scripts/stop-trae-skin-windows.ps1",
     "scripts/stop-workbuddy-skin-macos.sh",
-    "scripts/verify-trae-skin-macos.sh",
-    "scripts/verify-trae-skin-windows.ps1",
     "scripts/verify-workbuddy-skin-macos.sh",
     "scripts/workbuddy-injector.mjs",
-    "skills/trae-dream-skin",
+    "skills/workbuddy-dream-skin",
     "src/cli.mjs",
     "src/core",
     "LICENSE",
@@ -60,10 +44,10 @@
   ],
   "scripts": {
     "test": "npm run cli:resources && node --test",
-    "check": "npm run version:check && node --check src/cli.mjs && node --check bin/skin-cli.mjs && node --check scripts/product-version.mjs && node --check scripts/build-cli-runtime.mjs && node --check scripts/verify-cli-package.mjs && node --check scripts/injector.mjs && node --check scripts/workbuddy-injector.mjs && node --check assets/renderer-inject.js && node --check assets/workbuddy-renderer-inject.js && node --check plugins/trae/plugin.mjs && node --check plugins/trae/catalog.mjs && node --check plugins/workbuddy/plugin.mjs && node --check plugins/workbuddy/catalog.mjs",
+    "check": "npm run version:check && node --check src/cli.mjs && node --check bin/workbuddy-skin.mjs && node --check scripts/product-version.mjs && node --check scripts/build-cli-runtime.mjs && node --check scripts/verify-cli-package.mjs && node --check scripts/cdp-client.mjs && node --check scripts/workbuddy-injector.mjs && node --check assets/workbuddy-renderer-inject.js && node --check plugins/workbuddy/plugin.mjs && node --check plugins/workbuddy/catalog.mjs",
     "version:check": "node ./scripts/product-version.mjs --check",
     "version:set": "node ./scripts/product-version.mjs --set",
-    "cli": "node ./bin/skin-cli.mjs",
+    "cli": "node ./bin/workbuddy-skin.mjs",
     "cli:resources": "node ./scripts/build-cli-runtime.mjs",
     "pack:check": "npm run cli:resources && node ./scripts/verify-cli-package.mjs",
     "prepare": "npm run cli:resources",

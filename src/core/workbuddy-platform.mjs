@@ -123,7 +123,6 @@ export class WorkBuddyPlatformRuntime {
         encoding: "utf8",
         timeout: operation === "status" ? 60_000 : 180_000,
         maxBuffer: 8 * 1024 * 1024,
-        windowsHide: true,
       });
       return {
         operation,

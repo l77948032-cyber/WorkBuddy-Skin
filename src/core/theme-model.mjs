@@ -77,49 +77,6 @@ export const APPEARANCE_DEFAULTS = Object.freeze({
 
 const LEGACY_BACKGROUND_OVERLAY = "rgba(4, 8, 18, 0.28)";
 
-export const THEME_VARIABLES = Object.freeze([
-  "--trae-skin-art",
-  "--trae-skin-bg",
-  "--trae-skin-panel",
-  "--trae-skin-panel-alt",
-  "--trae-skin-accent",
-  "--trae-skin-accent-alt",
-  "--trae-skin-secondary",
-  "--trae-skin-highlight",
-  "--trae-skin-on-accent",
-  "--trae-skin-success",
-  "--trae-skin-warning",
-  "--trae-skin-danger",
-  "--trae-skin-info",
-  "--trae-skin-disabled",
-  "--trae-skin-text",
-  "--trae-skin-muted",
-  "--trae-skin-line",
-  "--trae-skin-selection",
-  "--trae-skin-terminal",
-  "--trae-skin-focus",
-  "--trae-skin-surface-hover",
-  "--trae-skin-surface-active",
-  "--trae-skin-tooltip-bg",
-  "--trae-skin-tooltip-text",
-  "--trae-skin-color-scheme",
-  "--trae-skin-art-position",
-  "--trae-skin-art-size",
-  "--trae-skin-art-opacity",
-  "--trae-skin-art-blend",
-  "--trae-skin-overlay",
-  "--trae-skin-overlay-tint",
-  "--trae-skin-surface-mix",
-  "--trae-skin-sidebar-mix",
-  "--trae-skin-reading-mix",
-  "--trae-skin-composer-mix",
-  "--trae-skin-sidebar-readable-mix",
-  "--trae-skin-blur",
-  "--trae-skin-saturation",
-  "--trae-skin-radius",
-  "--trae-skin-shadow",
-]);
-
 export function validColor(value, fallback) {
   if (typeof value !== "string") return fallback;
   const color = value.trim();
@@ -240,7 +197,7 @@ export function normalizeTheme(raw, source = "theme.json") {
     name: text(raw.name, raw.id, 80),
     description: text(raw.description, "", 240),
     layout: layouts.has(requestedLayout) ? requestedLayout : "classic",
-    brandSubtitle: text(raw.brandSubtitle, "TRAE DREAM SKIN", 80),
+    brandSubtitle: text(raw.brandSubtitle, "WORKBUDDY DREAM SKIN", 80),
     tagline: text(raw.tagline, "A calmer workspace.", 160),
     statusText: text(raw.statusText, "SKIN ACTIVE", 80),
     quote: text(raw.quote, "BUILD SOMETHING WORTH KEEPING", 160),

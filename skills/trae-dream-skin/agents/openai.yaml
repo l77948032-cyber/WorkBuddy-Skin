@@ -1,4 +1,0 @@
-interface:
-  display_name: "Trae-Dream-Skin"
-  short_description: "Create and apply structured Trae or WorkBuddy skins"
-  default_prompt: "Use skin-cli to inspect the selected target, make revision-checked structured changes, validate them, and report the result. Apply, verify, or restore only when explicitly requested."
