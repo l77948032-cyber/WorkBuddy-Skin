@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="#三步开始">立即开始</a> ·
+  <a href="#组件覆盖">组件范围</a> ·
   <a href="#真实案例">查看案例</a> ·
   <a href="https://github.com/l77948032-cyber/WorkBuddy-Skin/releases/latest">下载最新版</a>
 </p>
@@ -17,12 +18,12 @@
     <td width="50%" valign="top">
       <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/docs/images/workbuddy-harbor-focus.png" alt="Harbor Focus 在 WorkBuddy 中的实机效果">
       <br><strong>Harbor Focus</strong>
-      <br><sub>雾蓝海港工作台 · WorkBuddy 首页实机</sub>
+      <br><sub>明亮首页实机 · 背景、侧栏、场景标签、快捷入口与输入区</sub>
     </td>
     <td width="50%" valign="top">
       <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/docs/images/workbuddy-orchid-night.png" alt="Orchid Night 在 WorkBuddy 中的实机效果">
       <br><strong>Orchid Night</strong>
-      <br><sub>深靛兰花夜景 · WorkBuddy 对话页实机</sub>
+      <br><sub>深色首页实机 · 导航、项目列表、圆章图标、焦点态与输入区</sub>
     </td>
   </tr>
 </table>
@@ -33,6 +34,53 @@ WorkBuddy。
 
 它改变的不只是一张壁纸。首页、项目页、对话区、侧栏、输入框、按钮、选中状态和提示
 都会使用同一种视觉语言；内容层保留足够的通透感，不再用大片不透明面板把背景完全盖住。
+
+## 组件覆盖
+
+WorkBuddy Skin 调整的是一套完整视觉系统。Agent 只修改一份结构化主题，运行时就会把
+背景、色彩、表面材质、图标语言和交互状态同步映射到整个 WorkBuddy，而不是只给首页
+贴一张图片。
+
+<table>
+  <tr>
+    <td align="center" width="25%"><strong>8</strong><br><sub>类核心页面</sub></td>
+    <td align="center" width="25%"><strong>32</strong><br><sub>个界面组件</sub></td>
+    <td align="center" width="25%"><strong>18</strong><br><sub>个色彩角色</sub></td>
+    <td align="center" width="25%"><strong>5</strong><br><sub>组交互反馈</sub></td>
+  </tr>
+</table>
+
+### 一套主题具体会覆盖什么
+
+| 界面范围 | 组件 | 会同步变化的可见元素 |
+| --- | --- | --- |
+| **工作区骨架** | `shell.workspace`、`shell.titlebar` | 应用背景、内容表面、环境装饰、标题栏与窗口操作 |
+| **侧栏与项目导航** | `sidebar.navigation`、`sidebar.project` | 入口图标、选中标记、项目和对话分组、分隔线、元信息 |
+| **WorkBuddy 首页** | `home.hero`、`home.quickAction` | 欢迎标题、场景标签、快捷任务卡、图标块、悬停和焦点反馈 |
+| **对话内容** | `chat.timeline`、`chat.message.user`、`chat.message.agent`、`chat.toolCall` | 对话时间线、用户消息、Agent 回复、附件、工具调用、审批与执行状态 |
+| **输入与主要操作** | `composer.surface`、`composer.tool`、`action.primary` | 输入面板、焦点环、模型/附件/技能/语音控件、发送与确认按钮 |
+| **结果与文件** | `result.shell`、`result.tabs`、`result.artifact`、`result.fileTree` | 结果面板、活动标签、产物卡、文件树、选中项与增删改状态 |
+| **专家、技能与连接器** | `market.toolbar`、`market.card` | 搜索、分类、筛选、能力卡片、标签、安装状态与操作反馈 |
+| **自动化** | `automation.task`、`automation.run` | 自动化任务卡、启用状态、运行历史、耗时及成功/警告/错误状态 |
+| **项目与设置** | `project.card`、`settings.section` | 项目卡、活动信息、成员入口、设置分组、偏好项和控件状态 |
+| **通用控件与反馈** | `input.field`、`selection.control`、`overlay.menu`、`overlay.dialog`、`overlay.tooltip`、`status.badge`、`status.toast`、`loading.skeleton`、`empty.state` | 输入和选择、菜单和弹窗、Tooltip、状态徽标、通知、加载与空状态 |
+
+这些组件覆盖首页、助手、对话、结果、能力中心、自动化、项目和设置 8 类页面。结果区还会
+同步 WorkBuddy 编辑器、标签、按钮、终端等基础界面色彩，但不会替换代码语法配色方案。
+
+### CLI 真正可以调整的元素
+
+| 主题层 | 可以修改 | 最终影响 |
+| --- | --- | --- |
+| **背景构图** | 图片、位置、缩放、透明度、叠色、混合模式、饱和度 | 决定主题场景如何进入工作区，同时保留正文可读性 |
+| **18 个色彩角色** | 背景、两级面板、主/辅强调色、文字、弱化文字、边线、选区、终端、成功、警告、错误、信息和禁用色等 | 让导航、正文、按钮、文件状态与反馈使用统一配色 |
+| **表面与层级** | 内容区和侧栏透明度、模糊、圆角、明暗模式 | 控制玻璃感、纸面感、层级分隔与背景露出程度 |
+| **5 个交互状态** | 悬停、按下、焦点、Tooltip 背景和 Tooltip 文字 | 让鼠标、键盘与禁用状态依旧清楚可辨 |
+| **组件视觉语言** | 图标处理、表面处理、卡片处理、主题纹理与装饰语言 | 让快捷入口、能力卡、项目卡和浮层不只是换颜色 |
+
+> **能力边界：**32 类组件不是 32 个互不关联的样式开关。CLI 修改的是一套全局主题
+> 规则，再由运行时一致地映射到这些组件。因此界面不会东一块、西一块；它改变视觉呈现，
+> 但不会修改 WorkBuddy 的功能、内容或信息结构。
 
 ## 真实案例
 
@@ -53,7 +101,7 @@ WorkBuddy。
 > 用 Orchid Night 做一个夜间版本。降低装饰亮度，让输入框和当前任务最醒目，长对话
 > 阅读不能费力。
 
-深靛玻璃、兰花紫和克制的青色边光自然延伸到导航、对话与输入区。正文依然保持高对比，
+深靛玻璃、兰花紫和克制的青色边光自然延伸到导航、项目列表与输入区。正文依然保持高对比，
 视觉重点只落在当前任务、运行状态与即将执行的操作上。
 
 ## 更多主题方向
@@ -157,7 +205,7 @@ workbuddy-skin restore
 - **不替换界面文件**：主题通过本地运行时呈现，不覆盖 WorkBuddy 原有界面资源。
 - **不需要 Apple 证书**：这是 CLI，不是需要签名安装的 macOS 应用。
 
-当前已在 **WorkBuddy 5.3.5 · macOS** 完成实机应用、首页与对话页截图验证。WorkBuddy
+当前已在 **WorkBuddy 5.3.5 · macOS** 完成实机应用与两套首页主题截图验证。WorkBuddy
 更新界面后，个别组件可能需要重新适配，欢迎附版本号与截图反馈。
 
 ## 常见问题
