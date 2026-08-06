@@ -97,6 +97,16 @@ WorkBuddy。
 
 <table>
   <tr>
+    <td valign="top">
+      <img src="./docs/images/components/orchid-project-conversation.png" alt="Orchid Night 项目对话、Agent 回复与产物组件">
+      <br><strong>项目对话与产物</strong>
+      <br><sub>用户消息、Agent 回复、产物链接、消息操作、协作状态、模型与输入控件</sub>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
     <td width="50%" valign="top">
       <img src="./docs/images/components/orchid-automation-cards.png" alt="Orchid Night 自动化页面组件">
       <br><strong>自动化</strong>
@@ -258,9 +268,9 @@ workbuddy-skin restore
 - **不替换界面文件**：主题通过本地运行时呈现，不覆盖 WorkBuddy 原有界面资源。
 - **不需要 Apple 证书**：这是 CLI，不是需要签名安装的 macOS 应用。
 
-当前已在 **WorkBuddy 5.3.5 · macOS** 完成首页、项目、能力中心、自动化与设置页面的
-实机主题截图验证。WorkBuddy 更新界面后，个别组件可能需要重新适配，欢迎附版本号与
-截图反馈。
+当前已在 **WorkBuddy 5.3.5 · macOS** 完成首页、项目、项目对话与产物、能力中心、
+自动化与设置页面的实机主题截图验证。WorkBuddy 更新界面后，个别组件可能需要重新适配，
+欢迎附版本号与截图反馈。
 
 ## 常见问题
 
