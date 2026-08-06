@@ -9,7 +9,7 @@
 <p align="center">
   <a href="#三步开始">立即开始</a> ·
   <a href="#组件覆盖">组件范围</a> ·
-  <a href="#真实案例">查看案例</a> ·
+  <a href="#实机组件图鉴">查看案例</a> ·
   <a href="https://github.com/l77948032-cyber/WorkBuddy-Skin/releases/latest">下载最新版</a>
 </p>
 
@@ -34,6 +34,81 @@ WorkBuddy。
 
 它改变的不只是一张壁纸。首页、项目页、对话区、侧栏、输入框、按钮、选中状态和提示
 都会使用同一种视觉语言；内容层保留足够的通透感，不再用大片不透明面板把背景完全盖住。
+
+## 实机组件图鉴
+
+下面不是概念图，也不是重新绘制的 UI。所有画面都来自 **WorkBuddy 5.3.5 · macOS**
+实机截图，并从同一套主题的真实页面中截取组件细节。
+
+### Harbor Focus · 日间专注
+
+雾蓝、海玻璃色和轻薄表面共同作用于导航、首页、项目与能力中心。背景始终存在，但信息
+层级和主要操作不会被风景淹没。
+
+<table>
+  <tr>
+    <td width="35%" valign="top">
+      <img src="./docs/images/components/harbor-navigation.png" alt="Harbor Focus 侧栏导航与项目列表组件">
+      <br><strong>侧栏与项目导航</strong>
+      <br><sub>线性图标、青色选中轨、空间分组、项目层级与时间信息</sub>
+    </td>
+    <td width="65%" valign="top">
+      <img src="./docs/images/components/harbor-home-controls.png" alt="Harbor Focus 首页快捷入口与输入组件">
+      <br><strong>首页操作与输入区</strong>
+      <br><sub>场景切换、快捷入口、输入表面、工作空间、权限、模型、语音与发送状态</sub>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/components/harbor-project-cards.png" alt="Harbor Focus 项目页卡片与搜索组件">
+      <br><strong>项目页</strong>
+      <br><sub>主要按钮、搜索框、项目卡、模板卡、图标块与卡片强调边</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/components/harbor-market-cards.png" alt="Harbor Focus 专家技能连接器页面组件">
+      <br><strong>专家、技能与连接器</strong>
+      <br><sub>顶部标签、搜索、精选场景、分类筛选、能力卡与状态标签</sub>
+    </td>
+  </tr>
+</table>
+
+### Orchid Night · 深夜沉浸
+
+深靛玻璃、兰花紫和克制的青色边光会贯穿导航、首页、自动化与设置控件。深色主题不是
+把页面整体染黑，而是重新组织焦点、表面层级和操作反馈。
+
+<table>
+  <tr>
+    <td width="35%" valign="top">
+      <img src="./docs/images/components/orchid-navigation.png" alt="Orchid Night 侧栏导航与项目列表组件">
+      <br><strong>侧栏与项目导航</strong>
+      <br><sub>圆章图标、紫色活动轨、深色分组线、选中状态与弱化信息</sub>
+    </td>
+    <td width="65%" valign="top">
+      <img src="./docs/images/components/orchid-home-controls.png" alt="Orchid Night 首页快捷入口与输入组件">
+      <br><strong>首页操作与输入区</strong>
+      <br><sub>夜间场景标签、快捷入口、半透明输入面板、工具栏与焦点边线</sub>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/images/components/orchid-automation-cards.png" alt="Orchid Night 自动化页面组件">
+      <br><strong>自动化</strong>
+      <br><sub>页面标签、空状态、主要操作、任务模板、图标与说明层级</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/images/components/orchid-settings.png" alt="Orchid Night 设置页面组件">
+      <br><strong>设置与表单</strong>
+      <br><sub>设置导航、选中项、下拉框、开关、输入区、禁用按钮与分隔线</sub>
+    </td>
+  </tr>
+</table>
 
 ## 组件覆盖
 
@@ -81,28 +156,6 @@ WorkBuddy Skin 调整的是一套完整视觉系统。Agent 只修改一份结�
 > **能力边界：**32 类组件不是 32 个互不关联的样式开关。CLI 修改的是一套全局主题
 > 规则，再由运行时一致地映射到这些组件。因此界面不会东一块、西一块；它改变视觉呈现，
 > 但不会修改 WorkBuddy 的功能、内容或信息结构。
-
-## 真实案例
-
-### 日间专注：清爽，但不苍白
-
-**主题：Harbor Focus**
-
-> 给 WorkBuddy 做一套适合白天整理项目的主题。用雾蓝和海玻璃色，背景要能看见，但项目
-> 卡片、搜索框和主要操作必须清楚。
-
-浅色海港背景贯穿首页与侧栏，青绿色焦点负责标记当前入口；卡片使用轻薄半透明表面，既
-能区分信息层级，也不会把主视觉切成一块块生硬的白板。
-
-### 深夜工作：沉浸，但不压抑
-
-**主题：Orchid Night**
-
-> 用 Orchid Night 做一个夜间版本。降低装饰亮度，让输入框和当前任务最醒目，长对话
-> 阅读不能费力。
-
-深靛玻璃、兰花紫和克制的青色边光自然延伸到导航、项目列表与输入区。正文依然保持高对比，
-视觉重点只落在当前任务、运行状态与即将执行的操作上。
 
 ## 更多主题方向
 
@@ -205,8 +258,9 @@ workbuddy-skin restore
 - **不替换界面文件**：主题通过本地运行时呈现，不覆盖 WorkBuddy 原有界面资源。
 - **不需要 Apple 证书**：这是 CLI，不是需要签名安装的 macOS 应用。
 
-当前已在 **WorkBuddy 5.3.5 · macOS** 完成实机应用与两套首页主题截图验证。WorkBuddy
-更新界面后，个别组件可能需要重新适配，欢迎附版本号与截图反馈。
+当前已在 **WorkBuddy 5.3.5 · macOS** 完成首页、项目、能力中心、自动化与设置页面的
+实机主题截图验证。WorkBuddy 更新界面后，个别组件可能需要重新适配，欢迎附版本号与
+截图反馈。
 
 ## 常见问题
 
