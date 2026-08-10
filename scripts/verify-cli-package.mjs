@@ -56,6 +56,33 @@ function isForbiddenPath(file) {
   return false;
 }
 
+export function parseNpmPackJsonReport(stdout) {
+  if (typeof stdout !== "string" || !stdout.trim()) {
+    throw new Error("npm pack did not return a JSON report array.");
+  }
+
+  const text = stdout.replace(/^\uFEFF/, "");
+  const candidates = [];
+  for (let index = text.indexOf("["); index !== -1; index = text.indexOf("[", index + 1)) {
+    candidates.push(index);
+  }
+
+  // npm 10 can write lifecycle output before its report. A candidate is valid
+  // only when the complete remaining stdout is one JSON array, so malformed or
+  // trailing output is never silently ignored.
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    const candidate = text.slice(candidates[index]).trim();
+    try {
+      const value = JSON.parse(candidate);
+      if (Array.isArray(value)) return value;
+    } catch {
+      // Earlier '[' characters can belong to lifecycle text or nested JSON.
+    }
+  }
+
+  throw new Error("npm pack did not end with a valid JSON report array.");
+}
+
 export async function verifyCliPackage({ root = projectRoot } = {}) {
   const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
   if (packageJson.name !== "workbuddy-skin" || !semverPattern.test(packageJson.version || "")) {
@@ -80,7 +107,7 @@ export async function verifyCliPackage({ root = projectRoot } = {}) {
       ...(process.platform === "win32" ? { shell: true } : {}),
     },
   );
-  const report = JSON.parse(stdout);
+  const report = parseNpmPackJsonReport(stdout);
   if (!Array.isArray(report) || report.length !== 1) {
     throw new Error("npm pack returned an unexpected report.");
   }

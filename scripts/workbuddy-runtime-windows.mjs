@@ -1062,10 +1062,33 @@ async function validateSecureDirectory(directoryPath) {
   return fs.realpath(directoryPath);
 }
 
+function statTimeMs(stat, field) {
+  const milliseconds = stat?.[`${field}Ms`];
+  if (Number.isFinite(milliseconds)) return milliseconds;
+  const date = stat?.[field];
+  return date instanceof Date && Number.isFinite(date.getTime()) ? date.getTime() : null;
+}
+
+export function boundedJsonFileIdentityMatches(before, after, platform = process.platform) {
+  if (platform === "win32") {
+    return before?.size === after?.size
+      && ["birthtime", "mtime", "ctime"].every((field) => {
+        const beforeTime = statTimeMs(before, field);
+        const afterTime = statTimeMs(after, field);
+        return beforeTime !== null && beforeTime === afterTime;
+      });
+  }
+  return before?.dev !== undefined
+    && before?.ino !== undefined
+    && before.dev === after?.dev
+    && before.ino === after?.ino;
+}
+
 export async function readBoundedJsonFile(filePath, {
   maxBytes = MAX_WINDOWS_STATE_BYTES,
   allowedRoot = null,
   errorCode = "INVALID_STATE_FILE",
+  platform = process.platform,
 } = {}) {
   if (allowedRoot) {
     const root = await validateSecureDirectory(allowedRoot);
@@ -1083,13 +1106,15 @@ export async function readBoundedJsonFile(filePath, {
   const handle = await fs.open(filePath, "r");
   try {
     const opened = await handle.stat();
-    if (!opened.isFile() || opened.size <= 0 || opened.size > maxBytes
-      || (before.dev !== undefined && opened.dev !== before.dev)
-      || (before.ino !== undefined && opened.ino !== before.ino)) {
+    if (!opened.isFile() || opened.nlink !== 1 || opened.size <= 0 || opened.size > maxBytes
+      || !boundedJsonFileIdentityMatches(before, opened, platform)) {
       fail(errorCode, "JSON state file changed while it was opened");
     }
     const buffer = await handle.readFile();
-    if (buffer.length !== opened.size || buffer.length > maxBytes) {
+    const after = await handle.stat();
+    if (!after.isFile() || after.nlink !== 1 || after.size <= 0 || after.size > maxBytes
+      || !boundedJsonFileIdentityMatches(opened, after, platform)
+      || buffer.length !== after.size || buffer.length > maxBytes) {
       fail(errorCode, "JSON state file changed while it was read");
     }
     try {

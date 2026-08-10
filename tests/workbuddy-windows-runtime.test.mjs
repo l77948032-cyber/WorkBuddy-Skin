@@ -12,6 +12,7 @@ import {
   WindowsRuntimeError,
   WindowsWorkBuddyRuntime,
   classifyWindowsWorkBuddyProbe,
+  boundedJsonFileIdentityMatches,
   compareWindowsVersions,
   createDefaultWindowsHost,
   discoverOfficialWorkBuddy,
@@ -353,6 +354,37 @@ test("runtime JSON state rejects links, hard links, and oversized files", async 
   } catch (error) {
     if (error.code !== "EPERM") throw error;
   }
+});
+
+test("Windows bounded JSON identity ignores unstable inode metadata but verifies size and timestamps", async (t) => {
+  const timestamps = {
+    birthtimeMs: 1_700_000_000_000,
+    mtimeMs: 1_700_000_000_100,
+    ctimeMs: 1_700_000_000_200,
+  };
+  const before = { dev: 10, ino: 20, size: 128, ...timestamps };
+  const opened = { ...before, dev: 99, ino: 88 };
+
+  assert.equal(boundedJsonFileIdentityMatches(before, opened, "win32"), true);
+  assert.equal(boundedJsonFileIdentityMatches(before, { ...opened, size: 127 }, "win32"), false);
+  for (const field of ["birthtimeMs", "mtimeMs", "ctimeMs"]) {
+    assert.equal(boundedJsonFileIdentityMatches(before, {
+      ...opened,
+      [field]: opened[field] + 1,
+    }, "win32"), false);
+  }
+  assert.equal(boundedJsonFileIdentityMatches(before, opened, "darwin"), false);
+  assert.equal(boundedJsonFileIdentityMatches(before, { ...opened, dev: 10, ino: 20 }, "linux"), true);
+
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "workbuddy-win-identity-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const statePath = path.join(root, "state.json");
+  const state = stateFixture();
+  await fs.writeFile(statePath, JSON.stringify(state));
+  assert.deepEqual(await readBoundedJsonFile(statePath, {
+    allowedRoot: root,
+    platform: "win32",
+  }), state);
 });
 
 test("Windows state rejects altered ownership and path fields", () => {

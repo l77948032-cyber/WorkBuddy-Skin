@@ -190,7 +190,7 @@ test("WorkBuddy plugin delegates Tool, preview, and runtime capabilities to the 
   assert.equal(plugin.manifest.target.id, "workbuddy");
   assert.equal(created.expectedRevision, null);
   assert.equal(created.operation, "write");
-  assert.equal(created.imagePath, "/catalog/harbor-focus/background.png");
+  assert.equal(created.imagePath, path.join("/catalog/harbor-focus", "background.png"));
   assert.equal(created.themePatch.id, "blank");
   assert.equal(created.themePatch.name, "Blank");
   assert.equal(created.themePatch.appearance.backgroundOpacity, 0);
