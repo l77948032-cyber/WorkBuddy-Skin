@@ -3,7 +3,7 @@
 <p align="center"><strong>给 WorkBuddy 换一套真正融入工作的主题。</strong></p>
 
 <p align="center">
-  10 套内置主题 · Agent 直接调用 · 本地运行 · 随时恢复
+  macOS + Windows · 10 套内置主题 · Agent 直接调用 · 本地运行 · 随时恢复
 </p>
 
 <p align="center">
@@ -230,7 +230,8 @@ Agent 可以直接调用 `workbuddy-skin` 完成这些操作，无需 ACP、MCP 
 
 ### 1. 安装
 
-需要 macOS 与 Node.js `22.12` 或更高版本。
+支持 macOS 12 或更高版本，以及 Windows 10 / 11。需要 Node.js `22.12` 或更高版本，
+并先安装官方 WorkBuddy 客户端。
 
 ```bash
 npm install --global github:l77948032-cyber/WorkBuddy-Skin
@@ -259,6 +260,9 @@ workbuddy-skin restore
 
 所有命令只面向 WorkBuddy，不需要选择目标或版本。
 
+首次应用主题时，CLI 会重启一次 WorkBuddy，以建立仅限本机访问的主题会话。macOS 与
+Windows 使用相同的主题和命令，不需要分别维护两份皮肤。
+
 ## 为什么可以放心尝试
 
 - **本地运行**：主题、图片和运行状态留在你的电脑上。
@@ -266,11 +270,17 @@ workbuddy-skin restore
 - **先预览再决定**：可以生成真实截图检查结果，再决定是否保留。
 - **随时恢复**：`restore` 会移除主题效果，让 WorkBuddy 回到原生界面。
 - **不替换界面文件**：主题通过本地运行时呈现，不覆盖 WorkBuddy 原有界面资源。
-- **不需要 Apple 证书**：这是 CLI，不是需要签名安装的 macOS 应用。
+- **没有额外桌面程序**：安装的是一个 npm CLI，不需要再安装主题管理应用。
+- **校验官方客户端**：运行时只连接通过系统签名与产品信息校验的官方 WorkBuddy。
 
 当前已在 **WorkBuddy 5.3.5 · macOS** 完成首页、项目、项目对话与产物、能力中心、
 自动化与设置页面的实机主题截图验证。WorkBuddy 更新界面后，个别组件可能需要重新适配，
 欢迎附版本号与截图反馈。
+
+| 平台 | 当前状态 | 验证范围 |
+| --- | --- | --- |
+| **macOS 12+** | 稳定支持 | WorkBuddy 5.3.5 实机应用、截图、验证与恢复 |
+| **Windows 10 / 11** | Beta | WorkBuddy 5.3.8 官方安装包、签名、界面结构与本地运行链路；等待 Windows 实机完成最终视觉验收 |
 
 ## 常见问题
 
@@ -297,7 +307,7 @@ PNG、JPEG 或 WebP 背景。
 <details>
 <summary><strong>WorkBuddy 更新后效果异常怎么办？</strong></summary>
 <br>
-先执行验证或恢复，再附上 WorkBuddy 版本、macOS 版本和截图提交 Issue。应用界面升级后，
+先执行验证或恢复，再附上 WorkBuddy 版本、操作系统版本和截图提交 Issue。应用界面升级后，
 部分组件可能需要重新适配。
 </details>
 

@@ -7,6 +7,7 @@ import {
   DREAMSKIN_CLI_PROTOCOL_VERSION,
   runCli,
 } from "../src/cli.mjs";
+import { AGENT_TOOL_VERSION } from "../src/core/service.mjs";
 
 const PLUGIN_ID = "dreamskin.workbuddy";
 
@@ -20,14 +21,14 @@ function fakeRuntime() {
       runtimeStateRoot: "/tmp/workbuddy-skin/runtime-state",
       target: { themesRoot: "/tmp/workbuddy-skin/data/themes" },
     },
-    runtimeRoot: "/tmp/workbuddy-skin/runtime/0.6.0",
+    runtimeRoot: `/tmp/workbuddy-skin/runtime/${AGENT_TOOL_VERSION}`,
     target: {
       pluginId: PLUGIN_ID,
       targetId: "workbuddy",
       name: "WorkBuddy",
-      version: "0.6.0",
+      version: AGENT_TOOL_VERSION,
       supported: true,
-      platforms: ["darwin"],
+      platforms: ["darwin", "win32"],
     },
     tool: {
       execute: async (input) => {
@@ -82,7 +83,7 @@ test("standalone help and version expose only workbuddy-skin", async () => {
 
   const version = await dispatchCli(["--version"], null, {});
   assert.deepEqual(version.result, {
-    version: "0.6.0",
+    version: AGENT_TOOL_VERSION,
     protocolVersion: DREAMSKIN_CLI_PROTOCOL_VERSION,
   });
 });
@@ -107,7 +108,7 @@ test("paths reports one fixed WorkBuddy target", async () => {
   assert.deepEqual(envelope.scope, { pluginId: PLUGIN_ID });
   assert.equal(envelope.result.pluginId, PLUGIN_ID);
   assert.equal(envelope.result.themesRoot, "/tmp/workbuddy-skin/data/themes");
-  assert.equal(envelope.result.runtimeRoot, "/tmp/workbuddy-skin/runtime/0.6.0");
+  assert.equal(envelope.result.runtimeRoot, `/tmp/workbuddy-skin/runtime/${AGENT_TOOL_VERSION}`);
 });
 
 test("templates and installs always address dreamskin.workbuddy", async () => {

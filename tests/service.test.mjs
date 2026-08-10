@@ -176,19 +176,56 @@ test("preview fails before switching when the active revision cannot be restored
   assert.deepEqual(calls, []);
 });
 
-test("WorkBuddy apply commands carry a validated theme revision on macOS", () => {
+test("WorkBuddy runtime commands cover macOS and Windows while rejecting Linux", () => {
+  const scriptsRoot = path.join(path.parse(process.cwd()).root, "runtime", "scripts");
   const darwin = new WorkBuddyPlatformRuntime({
     platform: "darwin",
-    scriptsRoot: "/runtime/scripts",
+    scriptsRoot,
+  });
+  const win32 = new WorkBuddyPlatformRuntime({
+    platform: "win32",
+    scriptsRoot,
+  });
+  const linux = new WorkBuddyPlatformRuntime({
+    platform: "linux",
+    scriptsRoot,
   });
 
+  assert.equal(darwin.descriptor().supported, true);
+  assert.equal(win32.descriptor().supported, true);
+  assert.equal(linux.descriptor().supported, false);
+  assert.equal(darwin.descriptor().minimumTestedHostVersion, "5.2.0");
+  assert.equal(win32.descriptor().minimumTestedHostVersion, "5.3.8");
+  assert.equal(darwin.command("status").file, "/bin/bash");
   assert.deepEqual(
     darwin.command("apply", { themeId: "fixture", themeRevision: CANDIDATE_REVISION }).args.slice(-4),
     ["--theme", "fixture", "--revision", CANDIDATE_REVISION],
   );
+  assert.deepEqual(
+    win32.command("apply", { themeId: "fixture", themeRevision: CANDIDATE_REVISION }),
+    {
+      file: process.execPath,
+      args: [
+        path.join(scriptsRoot, "workbuddy-runtime-windows.mjs"),
+        "apply",
+        "--theme",
+        "fixture",
+        "--revision",
+        CANDIDATE_REVISION,
+      ],
+    },
+  );
+  assert.deepEqual(
+    win32.command("verify", { screenshotPath: "/tmp/workbuddy.png" }).args.slice(-3),
+    ["verify", "--screenshot", "/tmp/workbuddy.png"],
+  );
   assert.throws(
     () => darwin.command("apply", { themeId: "fixture", themeRevision: "stale" }),
     (error) => error.code === "INVALID_ARGUMENT",
+  );
+  assert.throws(
+    () => linux.command("status"),
+    (error) => error.code === "UNSUPPORTED_PLATFORM" && error.details.platform === "linux",
   );
 });
 

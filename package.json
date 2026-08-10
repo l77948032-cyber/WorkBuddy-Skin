@@ -1,6 +1,6 @@
 {
   "name": "workbuddy-skin",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A local-first WorkBuddy skin CLI for people and coding agents.",
   "author": {
     "name": "l77948032-cyber",
@@ -33,6 +33,7 @@
     "scripts/status-workbuddy-skin-macos.sh",
     "scripts/stop-workbuddy-skin-macos.sh",
     "scripts/verify-workbuddy-skin-macos.sh",
+    "scripts/workbuddy-runtime-windows.mjs",
     "scripts/workbuddy-injector.mjs",
     "skills/workbuddy-dream-skin",
     "src/cli.mjs",
@@ -44,7 +45,7 @@
   ],
   "scripts": {
     "test": "npm run cli:resources && node --test",
-    "check": "npm run version:check && node --check src/cli.mjs && node --check bin/workbuddy-skin.mjs && node --check scripts/product-version.mjs && node --check scripts/build-cli-runtime.mjs && node --check scripts/verify-cli-package.mjs && node --check scripts/cdp-client.mjs && node --check scripts/workbuddy-injector.mjs && node --check assets/workbuddy-renderer-inject.js && node --check plugins/workbuddy/plugin.mjs && node --check plugins/workbuddy/catalog.mjs",
+    "check": "npm run version:check && node --check src/cli.mjs && node --check bin/workbuddy-skin.mjs && node --check scripts/product-version.mjs && node --check scripts/build-cli-runtime.mjs && node --check scripts/verify-cli-package.mjs && node --check scripts/cdp-client.mjs && node --check scripts/workbuddy-runtime-windows.mjs && node --check scripts/workbuddy-injector.mjs && node --check assets/workbuddy-renderer-inject.js && node --check plugins/workbuddy/plugin.mjs && node --check plugins/workbuddy/catalog.mjs",
     "version:check": "node ./scripts/product-version.mjs --check",
     "version:set": "node ./scripts/product-version.mjs --set",
     "cli": "node ./bin/workbuddy-skin.mjs",

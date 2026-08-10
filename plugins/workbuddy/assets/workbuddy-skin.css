@@ -328,7 +328,8 @@ html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .teams-container {
   isolation: isolate;
 }
 
-html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .teams-container.is-mac {
+html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .teams-container.is-mac,
+html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] body.workbuddy-dream-skin-body[data-application-name="workbuddy"][data-electron-desktop="true"][data-platform="windows"] .teams-container {
   --wb-home-bg-primary: transparent;
   --wb-home-bg-secondary: transparent;
 }
@@ -366,6 +367,7 @@ html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .chat-container,
 html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .ai-chat-content,
 html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .wb-home-page,
 html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .teams-container.is-mac [data-view-id]:not(.conversation-sidebar):not(.detail-panel-container),
+html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] body.workbuddy-dream-skin-body[data-application-name="workbuddy"][data-electron-desktop="true"][data-platform="windows"] .teams-container [data-view-id]:not(.conversation-sidebar):not(.detail-panel-container),
 html.workbuddy-dream-skin[data-workbuddy-skin-compat="5.2"] .wb-cb-chat {
   background: transparent;
   backdrop-filter: none;

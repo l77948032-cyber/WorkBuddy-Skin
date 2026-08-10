@@ -71,19 +71,20 @@ export class WorkBuddyPlatformRuntime {
   }
 
   descriptor() {
+    const supported = this.platform === "darwin" || this.platform === "win32";
     return {
       platform: this.platform,
-      supported: this.platform === "darwin",
-      transport: this.platform === "darwin" ? "loopback-cdp" : null,
+      supported,
+      transport: supported ? "loopback-cdp" : null,
       host: "workbuddy",
-      minimumTestedHostVersion: "5.2.0",
+      minimumTestedHostVersion: this.platform === "win32" ? "5.3.8" : "5.2.0",
       appBundleModified: false,
     };
   }
 
   command(operation, { themeId, themeRevision, screenshotPath } = {}) {
-    if (this.platform !== "darwin") {
-      throw new ToolError("UNSUPPORTED_PLATFORM", "WorkBuddy Dream Skin currently supports macOS.", {
+    if (this.platform !== "darwin" && this.platform !== "win32") {
+      throw new ToolError("UNSUPPORTED_PLATFORM", "WorkBuddy Dream Skin supports macOS and Windows.", {
         platform: this.platform,
       });
     }
@@ -91,20 +92,31 @@ export class WorkBuddyPlatformRuntime {
       && (typeof themeRevision !== "string" || !/^[a-f0-9]{64}$/.test(themeRevision))) {
       throw new ToolError("INVALID_ARGUMENT", "Runtime theme revision must be a SHA-256 digest.");
     }
-    const files = {
-      status: "status-workbuddy-skin-macos.sh",
-      apply: "start-workbuddy-skin-macos.sh",
-      verify: "verify-workbuddy-skin-macos.sh",
-      restore: "stop-workbuddy-skin-macos.sh",
-    };
-    if (!files[operation]) throw new ToolError("INVALID_ARGUMENT", `Unknown runtime operation: ${operation}`);
-    const args = [path.join(this.scriptsRoot, files[operation])];
+    const operations = new Set(["status", "apply", "verify", "restore"]);
+    if (!operations.has(operation)) {
+      throw new ToolError("INVALID_ARGUMENT", `Unknown runtime operation: ${operation}`);
+    }
+    let file;
+    let args;
+    if (this.platform === "win32") {
+      file = process.execPath;
+      args = [path.join(this.scriptsRoot, "workbuddy-runtime-windows.mjs"), operation];
+    } else {
+      const files = {
+        status: "status-workbuddy-skin-macos.sh",
+        apply: "start-workbuddy-skin-macos.sh",
+        verify: "verify-workbuddy-skin-macos.sh",
+        restore: "stop-workbuddy-skin-macos.sh",
+      };
+      file = "/bin/bash";
+      args = [path.join(this.scriptsRoot, files[operation])];
+    }
     if (operation === "apply") {
       args.push("--theme", themeId);
       if (themeRevision) args.push("--revision", themeRevision);
     }
     if (operation === "verify" && screenshotPath) args.push("--screenshot", screenshotPath);
-    return { file: "/bin/bash", args };
+    return { file, args };
   }
 
   async execute(operation, options = {}) {

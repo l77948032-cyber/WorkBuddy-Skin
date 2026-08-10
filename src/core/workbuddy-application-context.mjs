@@ -34,6 +34,7 @@ export async function createWorkBuddyTargetRegistration({
   cssPath,
   templatePath,
   stateRoot,
+  platform = process.platform,
   catalogRepository,
   repository,
   platformRuntime,
@@ -52,6 +53,7 @@ export async function createWorkBuddyTargetRegistration({
     projectRoot: targetPluginRoot,
   });
   const targetRuntime = platformRuntime || new WorkBuddyPlatformRuntime({
+    platform,
     themesRoot,
     scriptsRoot,
     cssPath: cssPath || path.join(targetPluginRoot, "assets", "workbuddy-skin.css"),

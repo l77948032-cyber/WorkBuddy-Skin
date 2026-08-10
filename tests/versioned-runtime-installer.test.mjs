@@ -70,7 +70,9 @@ test("runtime installer stages verified immutable versions and tracks active/pre
   assert.equal(first.installed, true);
   assert.equal(first.activeVersion, "1.0.0");
   assert.equal(first.previousVersion, null);
-  assert.equal((await fs.stat(path.join(first.root, "bin", "launch.sh"))).mode & 0o777, 0o755);
+  if (process.platform !== "win32") {
+    assert.equal((await fs.stat(path.join(first.root, "bin", "launch.sh"))).mode & 0o777, 0o755);
+  }
 
   await fs.mkdir(path.join(installer.stagingRoot, "interrupted-install"));
   await fs.writeFile(path.join(installer.namespaceRoot, ".active-runtime.v1.json.interrupted.tmp"), "partial");

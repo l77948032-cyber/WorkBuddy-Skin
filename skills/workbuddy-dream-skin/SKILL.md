@@ -7,8 +7,8 @@ description: Use when an agent needs to inspect, create, edit, apply, verify, or
 
 Use `workbuddy-skin` instead of editing generated CSS, WorkBuddy application
 files, runtime state, or CDP settings directly. The CLI is dedicated to
-WorkBuddy on macOS and writes one JSON protocol envelope to stdout. Treat a
-nonzero exit code or `ok: false` as failure.
+WorkBuddy on macOS and Windows and writes one JSON protocol envelope to stdout.
+Treat a nonzero exit code or `ok: false` as failure.
 
 ## Theme Workflow
 

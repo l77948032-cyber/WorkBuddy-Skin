@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const execFile = promisify(execFileCallback);
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runtimePrefix = "package/build/cli-runtime/dreamskin.workbuddy/";
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 const required = new Set([
   "package/package.json",
@@ -21,6 +23,7 @@ const required = new Set([
   `${runtimePrefix}scripts/status-workbuddy-skin-macos.sh`,
   `${runtimePrefix}scripts/stop-workbuddy-skin-macos.sh`,
   `${runtimePrefix}scripts/verify-workbuddy-skin-macos.sh`,
+  `${runtimePrefix}scripts/workbuddy-runtime-windows.mjs`,
   `${runtimePrefix}scripts/workbuddy-injector.mjs`,
   `${runtimePrefix}src/core/paths.mjs`,
   `${runtimePrefix}src/core/theme-loader.mjs`,
@@ -31,6 +34,7 @@ const required = new Set([
   "package/plugins/workbuddy/resources/theme-v1.schema.json",
   "package/scripts/cdp-client.mjs",
   "package/scripts/start-workbuddy-skin-macos.sh",
+  "package/scripts/workbuddy-runtime-windows.mjs",
   "package/assets/workbuddy-renderer-inject.js",
   "package/skills/workbuddy-dream-skin/SKILL.md",
   "package/src/cli.mjs",
@@ -39,7 +43,7 @@ const required = new Set([
 function isForbiddenPath(file) {
   const normalized = file.toLowerCase();
   if (normalized.includes("/trae")) return true;
-  if (normalized.includes("windows") || normalized.endsWith(".ps1")) return true;
+  if (normalized.endsWith(".ps1")) return true;
   if (
     normalized.startsWith("package/desktop/")
     || normalized.startsWith("package/studio/")
@@ -54,8 +58,8 @@ function isForbiddenPath(file) {
 
 export async function verifyCliPackage({ root = projectRoot } = {}) {
   const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
-  if (packageJson.name !== "workbuddy-skin" || packageJson.version !== "0.6.0") {
-    throw new Error("package.json must identify workbuddy-skin 0.6.0.");
+  if (packageJson.name !== "workbuddy-skin" || !semverPattern.test(packageJson.version || "")) {
+    throw new Error("package.json must identify a versioned workbuddy-skin package.");
   }
   if (packageJson.private === true) throw new Error("CLI package cannot be private.");
   if (packageJson.main) throw new Error("CLI package must not expose a desktop main entry.");
@@ -67,17 +71,21 @@ export async function verifyCliPackage({ root = projectRoot } = {}) {
   }
 
   const { stdout } = await execFile(
-    "npm",
+    npmCommand,
     ["pack", "--dry-run", "--json", "--ignore-scripts"],
     {
       cwd: root,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
+      ...(process.platform === "win32" ? { shell: true } : {}),
     },
   );
   const report = JSON.parse(stdout);
   if (!Array.isArray(report) || report.length !== 1) {
     throw new Error("npm pack returned an unexpected report.");
+  }
+  if (report[0].name !== packageJson.name || report[0].version !== packageJson.version) {
+    throw new Error("npm pack metadata does not match package.json.");
   }
   const files = new Set(report[0].files.map((entry) => `package/${entry.path}`));
   const missing = [...required].filter((entry) => !files.has(entry));

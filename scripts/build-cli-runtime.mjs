@@ -16,6 +16,7 @@ const runtimeFiles = Object.freeze([
   "scripts/status-workbuddy-skin-macos.sh",
   "scripts/stop-workbuddy-skin-macos.sh",
   "scripts/verify-workbuddy-skin-macos.sh",
+  "scripts/workbuddy-runtime-windows.mjs",
   "scripts/workbuddy-injector.mjs",
   "src/core/paths.mjs",
   "src/core/theme-loader.mjs",

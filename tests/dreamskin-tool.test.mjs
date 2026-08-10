@@ -64,7 +64,7 @@ test("application context activates one WorkBuddy target and exposes thin manage
       schemaVersion: 1,
       id: PLUGIN_ID,
       name: "WorkBuddy",
-      version: "0.6.0",
+      version: "1.0.0",
       target: { id: "workbuddy", name: "WorkBuddy", platforms: ["darwin"] },
       theme: { schemaPath: "schema.json", registryPath: "registry.json" },
       themeTool: { name: "dreamskin_theme", actions: ["inspect"] },

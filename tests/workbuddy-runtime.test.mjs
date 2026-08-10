@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import vm from "node:vm";
 
@@ -22,7 +23,7 @@ import {
   WorkBuddyPlatformRuntime,
 } from "../src/core/workbuddy-platform.mjs";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REVISION = "b".repeat(64);
 const execFile = promisify(execFileCallback);
 
@@ -189,6 +190,12 @@ test("WorkBuddy injector parses scoped assets and rejects unsafe endpoint values
 test("WorkBuddy renderer detection requires the signed-app page shape and stable shell markers", () => {
   const target = rendererTarget();
   assert.equal(isPlausibleWorkBuddyRendererTarget(target), true);
+  assert.equal(isPlausibleWorkBuddyRendererTarget(rendererTarget({
+    url: "file:///C:/Users/Alice/AppData/Local/Programs/WorkBuddy/resources/app.asar/renderer/index.html",
+  })), true);
+  assert.equal(isPlausibleWorkBuddyRendererTarget(rendererTarget({
+    url: "file:///C:/Program%20Files/WorkBuddy/resources/app.asar/renderer/index.html",
+  })), true);
   assert.equal(isPlausibleWorkBuddyRendererTarget({
     ...target,
     url: "https://workbuddy.example/index.html",
@@ -198,6 +205,16 @@ test("WorkBuddy renderer detection requires the signed-app page shape and stable
     title: "Unrelated",
     url: "file:///Applications/Other.app/Contents/Resources/app.asar/renderer/index.html",
   }), false);
+  assert.equal(isPlausibleWorkBuddyRendererTarget(rendererTarget({
+    title: "Unrelated",
+    url: "file:///C:/Program%20Files/Other/resources/app.asar/renderer/index.html",
+  })), false);
+  assert.equal(isPlausibleWorkBuddyRendererTarget(rendererTarget({
+    url: "file://server/WorkBuddy/resources/app.asar/renderer/index.html",
+  })), false);
+  assert.equal(isPlausibleWorkBuddyRendererTarget(rendererTarget({
+    url: "file:///C:/Program%20Files/WorkBuddy/resources/other.asar/renderer/index.html",
+  })), false);
 
   const matched = classifyWorkBuddyProbe({
     viewport: { width: 1280, height: 800 },
@@ -266,14 +283,17 @@ test("WorkBuddy verification requires the artwork pseudo-element to render", asy
 
 test("WorkBuddy platform runtime uses target-specific scripts, roots, and revision tracking", async () => {
   const calls = [];
+  const scriptsRoot = path.resolve(path.parse(process.cwd()).root, "runtime", "scripts");
+  const themesRoot = path.resolve(path.parse(process.cwd()).root, "state", "themes", "workbuddy");
+  const stateRoot = path.resolve(path.parse(process.cwd()).root, "state", "runtime", "workbuddy");
   const runtime = new WorkBuddyPlatformRuntime({
     platform: "darwin",
-    scriptsRoot: "/runtime/scripts",
-    themesRoot: "/state/themes/workbuddy",
+    scriptsRoot,
+    themesRoot,
     cssPath: "/runtime/plugins/workbuddy/assets/workbuddy-skin.css",
     templatePath: "/runtime/assets/workbuddy-renderer-inject.js",
     registryPath: "/runtime/plugins/workbuddy/resources/components.v1.json",
-    stateRoot: "/state/runtime/workbuddy",
+    stateRoot,
     runner: async (file, args, options) => {
       calls.push({ file, args, options });
       return { stdout: '{"session":"off"}\n', stderr: "" };
@@ -298,8 +318,8 @@ test("WorkBuddy platform runtime uses target-specific scripts, roots, and revisi
   assert.deepEqual(await runtime.status(), { session: "off", diagnostics: undefined });
   assert.equal(calls[0].file, "/bin/bash");
   assert.match(calls[0].args[0], /status-workbuddy-skin-macos\.sh$/);
-  assert.equal(calls[0].options.env.WORKBUDDY_DREAM_SKIN_THEMES_ROOT, "/state/themes/workbuddy");
-  assert.equal(calls[0].options.env.WORKBUDDY_DREAM_SKIN_HOME, "/state/runtime/workbuddy");
+  assert.equal(calls[0].options.env.WORKBUDDY_DREAM_SKIN_THEMES_ROOT, themesRoot);
+  assert.equal(calls[0].options.env.WORKBUDDY_DREAM_SKIN_HOME, stateRoot);
 });
 
 test("WorkBuddy runtime never reports a dead persistent session as active", () => {

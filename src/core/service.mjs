@@ -4,7 +4,7 @@ import path from "node:path";
 import { ToolError } from "./errors.mjs";
 import { ThemeRepository } from "./theme-repository.mjs";
 
-export const AGENT_TOOL_VERSION = "0.6.0";
+export const AGENT_TOOL_VERSION = "0.7.0";
 
 async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));

@@ -98,11 +98,11 @@ function topLevelSelectors(selectorText) {
   return selectors.map((selector) => selector.replace(/\/\*[\s\S]*?\*\//g, "").trim()).filter(Boolean);
 }
 
-test("WorkBuddy manifest registers as a macOS target with complete plugin resources", async () => {
+test("WorkBuddy manifest registers as a macOS and Windows target with complete plugin resources", async () => {
   const manifest = await loadWorkBuddyPluginManifest();
   assert.equal(manifest.id, "dreamskin.workbuddy");
   assert.equal(manifest.target.id, "workbuddy");
-  assert.deepEqual(manifest.target.platforms, ["darwin"]);
+  assert.deepEqual(manifest.target.platforms, ["darwin", "win32"]);
 
   const plugin = await createWorkBuddyPlugin({ service: {} });
   const manager = new PluginManager();
@@ -405,6 +405,14 @@ test("WorkBuddy consumes theme opacity without covering the conversation artwork
   const shellAliases = ruleBodiesFor(canonical, ".teams-container.is-mac");
   assert.match(shellAliases, /--wb-home-bg-primary:\s*transparent/);
   assert.match(shellAliases, /--wb-home-bg-secondary:\s*transparent/);
+
+  const windowsShellSelector = 'body.workbuddy-dream-skin-body[data-application-name="workbuddy"][data-electron-desktop="true"][data-platform="windows"] .teams-container';
+  const windowsShellAliases = ruleBodiesFor(canonical, windowsShellSelector);
+  assert.match(windowsShellAliases, /--wb-home-bg-primary:\s*transparent/);
+  assert.match(windowsShellAliases, /--wb-home-bg-secondary:\s*transparent/);
+  const windowsViewCss = ruleBodiesFor(canonical, `${windowsShellSelector} [data-view-id]`);
+  assert.match(windowsViewCss, /background:\s*transparent/);
+  assert.match(windowsViewCss, /backdrop-filter:\s*none/);
 
   const assistantCss = ruleBodiesFor(canonical, 'data-workbuddy-skin-runtime-role~="assistant.prose"');
   assert.match(assistantCss, /border:\s*0/);

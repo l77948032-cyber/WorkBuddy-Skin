@@ -3,12 +3,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const defaultDataRoot = process.platform === "win32"
+  ? path.join(
+    process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+    "WorkBuddy Skin",
+  )
+  : path.join(os.homedir(), ".workbuddy-skin");
 
 export const PROJECT_ROOT = path.resolve(
   process.env.WORKBUDDY_SKIN_PROJECT_ROOT || path.join(here, "..", ".."),
 );
 export const WORKBUDDY_SKIN_HOME = path.resolve(
-  process.env.WORKBUDDY_SKIN_HOME || path.join(os.homedir(), ".workbuddy-skin"),
+  process.env.WORKBUDDY_SKIN_HOME || defaultDataRoot,
 );
 export const THEMES_ROOT = path.resolve(
   process.env.WORKBUDDY_SKIN_THEMES_ROOT || path.join(WORKBUDDY_SKIN_HOME, "themes"),
@@ -19,12 +25,25 @@ export const TOOL_DATA_ROOT = path.resolve(
 export const BACKUPS_ROOT = path.join(TOOL_DATA_ROOT, "backups");
 export const SCRIPTS_ROOT = path.join(PROJECT_ROOT, "scripts");
 
-export function runtimeStateRoot(platform = process.platform) {
-  if (process.env.WORKBUDDY_DREAM_SKIN_HOME) {
-    return path.resolve(process.env.WORKBUDDY_DREAM_SKIN_HOME);
+export function runtimeStateRoot(
+  platform = process.platform,
+  homeDir = os.homedir(),
+  environment = process.env,
+) {
+  if (environment.WORKBUDDY_DREAM_SKIN_HOME) {
+    const stateRoot = environment.WORKBUDDY_DREAM_SKIN_HOME;
+    return platform === "win32" && (path.win32.isAbsolute(stateRoot) || stateRoot.includes("\\"))
+      ? path.win32.resolve(stateRoot)
+      : path.resolve(stateRoot);
   }
   if (platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "WorkBuddyDreamSkin");
+    return path.join(homeDir, "Library", "Application Support", "WorkBuddyDreamSkin");
   }
-  return path.join(os.homedir(), ".local", "state", "WorkBuddyDreamSkin");
+  if (platform === "win32") {
+    return path.win32.join(
+      environment.LOCALAPPDATA || path.win32.join(homeDir, "AppData", "Local"),
+      "WorkBuddyDreamSkin",
+    );
+  }
+  return path.join(homeDir, ".local", "state", "WorkBuddyDreamSkin");
 }

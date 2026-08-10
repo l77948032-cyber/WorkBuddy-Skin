@@ -17,7 +17,7 @@ const filename = fileURLToPath(import.meta.url);
 const scriptRoot = path.dirname(filename);
 const projectRoot = path.resolve(scriptRoot, "..");
 
-export const WORKBUDDY_SKIN_VERSION = "0.6.0";
+export const WORKBUDDY_SKIN_VERSION = "0.7.0";
 export const WORKBUDDY_DEFAULT_PORT = 9432;
 export const WORKBUDDY_DEFAULT_THEME_DIR = path.join(
   projectRoot,
@@ -155,8 +155,16 @@ export function isPlausibleWorkBuddyRendererTarget(target) {
   try {
     const url = new URL(target.url);
     const rendererPath = decodeURIComponent(url.pathname);
-    return url.protocol === "file:"
-      && /\/Contents\/Resources\/app\.asar\/renderer\/index\.html$/i.test(rendererPath)
+    const isLocalFile = url.protocol === "file:"
+      && url.hostname === ""
+      && url.search === ""
+      && url.hash === "";
+    const isMacOSRenderer = /\/[^/]+\.app\/Contents\/Resources\/app\.asar\/renderer\/index\.html$/i
+      .test(rendererPath);
+    const isWindowsRenderer = /^\/[A-Za-z]:\/(?:[^/]+\/)+resources\/app\.asar\/renderer\/index\.html$/i
+      .test(rendererPath);
+    return isLocalFile
+      && (isMacOSRenderer || isWindowsRenderer)
       && /workbuddy/i.test(`${target.title || ""} ${rendererPath}`);
   } catch {
     return false;
