@@ -16,12 +16,12 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/docs/images/workbuddy-harbor-focus.png" alt="Harbor Focus 在 WorkBuddy 中的实机效果">
+      <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/assets/images/workbuddy-harbor-focus.png" alt="Harbor Focus 在 WorkBuddy 中的实机效果">
       <br><strong>Harbor Focus</strong>
       <br><sub>明亮首页实机 · 背景、侧栏、场景标签、快捷入口与输入区</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/docs/images/workbuddy-orchid-night.png" alt="Orchid Night 在 WorkBuddy 中的实机效果">
+      <img src="https://raw.githubusercontent.com/l77948032-cyber/WorkBuddy-Skin/main/assets/images/workbuddy-orchid-night.png" alt="Orchid Night 在 WorkBuddy 中的实机效果">
       <br><strong>Orchid Night</strong>
       <br><sub>深色首页实机 · 导航、项目列表、圆章图标、焦点态与输入区</sub>
     </td>
@@ -49,12 +49,12 @@ WorkBuddy。
 <table>
   <tr>
     <td width="35%" valign="top">
-      <img src="./docs/images/components/harbor-navigation.png" alt="Harbor Focus 侧栏导航与项目列表组件">
+      <img src="./assets/images/components/harbor-navigation.png" alt="Harbor Focus 侧栏导航与项目列表组件">
       <br><strong>侧栏与项目导航</strong>
       <br><sub>线性图标、青色选中轨、空间分组、项目层级与时间信息</sub>
     </td>
     <td width="65%" valign="top">
-      <img src="./docs/images/components/harbor-home-controls.png" alt="Harbor Focus 首页快捷入口与输入组件">
+      <img src="./assets/images/components/harbor-home-controls.png" alt="Harbor Focus 首页快捷入口与输入组件">
       <br><strong>首页操作与输入区</strong>
       <br><sub>场景切换、快捷入口、输入表面、工作空间、权限、模型、语音与发送状态</sub>
     </td>
@@ -64,12 +64,12 @@ WorkBuddy。
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="./docs/images/components/harbor-project-cards.png" alt="Harbor Focus 项目页卡片与搜索组件">
+      <img src="./assets/images/components/harbor-project-cards.png" alt="Harbor Focus 项目页卡片与搜索组件">
       <br><strong>项目页</strong>
       <br><sub>主要按钮、搜索框、项目卡、模板卡、图标块与卡片强调边</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="./docs/images/components/harbor-market-cards.png" alt="Harbor Focus 专家技能连接器页面组件">
+      <img src="./assets/images/components/harbor-market-cards.png" alt="Harbor Focus 专家技能连接器页面组件">
       <br><strong>专家、技能与连接器</strong>
       <br><sub>顶部标签、搜索、精选场景、分类筛选、能力卡与状态标签</sub>
     </td>
@@ -84,12 +84,12 @@ WorkBuddy。
 <table>
   <tr>
     <td width="35%" valign="top">
-      <img src="./docs/images/components/orchid-navigation.png" alt="Orchid Night 侧栏导航与项目列表组件">
+      <img src="./assets/images/components/orchid-navigation.png" alt="Orchid Night 侧栏导航与项目列表组件">
       <br><strong>侧栏与项目导航</strong>
       <br><sub>圆章图标、紫色活动轨、深色分组线、选中状态与弱化信息</sub>
     </td>
     <td width="65%" valign="top">
-      <img src="./docs/images/components/orchid-home-controls.png" alt="Orchid Night 首页快捷入口与输入组件">
+      <img src="./assets/images/components/orchid-home-controls.png" alt="Orchid Night 首页快捷入口与输入组件">
       <br><strong>首页操作与输入区</strong>
       <br><sub>夜间场景标签、快捷入口、半透明输入面板、工具栏与焦点边线</sub>
     </td>
@@ -99,7 +99,7 @@ WorkBuddy。
 <table>
   <tr>
     <td valign="top">
-      <img src="./docs/images/components/orchid-project-conversation.png" alt="Orchid Night 项目对话、Agent 回复与产物组件">
+      <img src="./assets/images/components/orchid-project-conversation.png" alt="Orchid Night 项目对话、Agent 回复与产物组件">
       <br><strong>项目对话与产物</strong>
       <br><sub>用户消息、Agent 回复、产物链接、消息操作、协作状态、模型与输入控件</sub>
     </td>
@@ -109,12 +109,12 @@ WorkBuddy。
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="./docs/images/components/orchid-automation-cards.png" alt="Orchid Night 自动化页面组件">
+      <img src="./assets/images/components/orchid-automation-cards.png" alt="Orchid Night 自动化页面组件">
       <br><strong>自动化</strong>
       <br><sub>页面标签、空状态、主要操作、任务模板、图标与说明层级</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="./docs/images/components/orchid-settings.png" alt="Orchid Night 设置页面组件">
+      <img src="./assets/images/components/orchid-settings.png" alt="Orchid Night 设置页面组件">
       <br><strong>设置与表单</strong>
       <br><sub>设置导航、选中项、下拉框、开关、输入区、禁用按钮与分隔线</sub>
     </td>
@@ -319,7 +319,7 @@ PNG、JPEG 或 WebP 背景。
 
 - [下载最新版本](https://github.com/l77948032-cyber/WorkBuddy-Skin/releases/latest)
 - [提交问题或建议](https://github.com/l77948032-cyber/WorkBuddy-Skin/issues)
-- [查看完整命令说明](./docs/agent-tool-v1.md)
+- [查看完整命令说明](https://app.notion.com/p/3e2482defde281da9c10e9f168546c05)
 - [素材与来源说明](./NOTICE.md)
 
 本项目采用 [MIT License](./LICENSE)。WorkBuddy Skin 是非官方社区项目，不代表
